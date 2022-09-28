@@ -25,6 +25,7 @@ class AudioFeature:
     def _extract_rms(self, window_t=10, hop_t=1):
         X = librosa.stft(self.y, n_fft=window_t*self.sr, hop_length=hop_t*self.sr, win_length=window_t*self.sr, window='hanning')
         Y = librosa.amplitude_to_db(np.abs(X), ref=np.max)
+
         rms = librosa.feature.rms(S=Y, frame_length=window_t*self.sr, hop_length=hop_t*self.sr)
         rms_feature = np.array([rms.mean(), rms.std()])
         # print(rms_feature.shape)
@@ -95,7 +96,8 @@ class AudioFeature:
 if __name__ == "__main__":
     src_path = f"data/test.wav"
     label = 'label1'
-    audio = AudioFeature(src_path, label)
+    fold = 1
+    audio = AudioFeature(src_path, label, fold)
     audio.extract_features(["rms", "mfcc", "spectral"])
 
     print(audio.features.shape)
