@@ -1,6 +1,7 @@
 import pandas as pd
 from pathlib import Path
 from feature_extract import AudioFeature
+from audio_splitter import AudioSplitter
 from kfold_model import KfoldModel
 import os
 import pickle
@@ -9,10 +10,19 @@ import numpy as np
 '''
 Use this function to get metadata when ready
 '''
+def save_features(audio_features, file_path):
+        out_name = file_path.split("/")[-1]
+        out_name = out_name.replace(".wav", "")
+
+        filename = f"data/{out_name}.pkl"
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        with open(filename, "wb") as f:
+            pickle.dump(audio_features, f)
+
 def parse_metadata(path):
     meta_df = pd.read_csv(path)
-    meta_df = meta_df[["sliced_file_name", "label"]]
-    meta = zip(meta_df["sliced_file_name"], meta_df["label"])
+    meta_df = meta_df[["file_name", "label_lst", "time_lst", "fold"]]
+    meta = zip(meta_df["file_name"], meta_df["label_lst"], meta_df["time_lst"], meta_df["fold"])
 
     return meta
 
@@ -20,13 +30,20 @@ if __name__ == "__main__":
     load_feature =  False
 
     # metadata = parse_metadata("metadata/metadata.csv")
-    metadata = zip(['test.wav'], ['label1'], [1])
+    meta_df = pd.DataFrame(data={'file_name':['test.wav'], 'label_lst':[[1, 1, 2, 3, 2, 3, 4]], 
+    'time_lst':[[0, 20, 55, 70, 150, 180, 220, 299.36572916666665]], 'fold':[1]})
+    metadata = zip(meta_df["file_name"], meta_df["label_lst"], meta_df["time_lst"], meta_df["fold"])
+
+    # specify extend time and target time in seconds
+    extend_t, target_t = 10, 1
+    audiosplitter = AudioSplitter(extend_t, target_t)
 
     # list to hold all instances of audios
-    audio_features = []
+    audio_features_all = []
     for row in metadata:
 
-        file_name, label, fold = row
+        audio_features = []
+        file_name, label_list, time_list, fold = row
         print(f'extracting features from {file_name}')
         fn = file_name.replace(".wav", "")
         transformed_path = f"data//{fn}.pkl"
@@ -34,14 +51,20 @@ if __name__ == "__main__":
         if load_feature and os.path.isfile(transformed_path):
             # if the file exists as a .pkl already, then load it
             with open(transformed_path, "rb") as f:
-                audio = pickle.load(f)
-                audio_features.append(audio)
+                audio_features = pickle.load(f)
         else:
             # if the file doesn't exist, then extract its features from the source data and save the result
-            src_path = f"data/{file_name}"
-            audio = AudioFeature(src_path, label, fold)
-            audio.extract_features(["mfcc", "spectral", "rms"])
-            audio_features.append(audio)
+            file_path = f"data/{file_name}"
+
+            datas, labels, sr = audiosplitter.split_audio(file_path, label_list, time_list)
+            for data, label in zip(datas, labels):
+                audio = AudioFeature(data, sr, label, fold)
+                audio.extract_features(["mfcc", "spectral", "rms"])
+                audio_features.append(audio)
+
+            save_features(audio_features, file_path)
+        
+        audio_features_all.extend(audio_features)
 
     feature_matrix = np.vstack([audio.features for audio in audio_features])
     labels = np.array([audio.label for audio in audio_features])

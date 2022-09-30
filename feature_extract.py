@@ -6,11 +6,10 @@ import os
 
 
 class AudioFeature:
-    def __init__(self, src_path, label, fold):
-        self.src_path = src_path
+    def __init__(self, y, sr, label, fold):
+        self.y, self.sr = y, sr
         self.label = label
         self.fold = fold
-        self.y, self.sr = librosa.load(src_path, mono=True, sr=None)
         self.features = None
 
     def _concat_features(self, feature):
@@ -22,7 +21,8 @@ class AudioFeature:
             [self.features, feature] if self.features is not None else feature
         )
 
-    def _extract_rms(self, window_t=10, hop_t=1):
+    def _extract_rms(self, window_t=3, hop_t=1):
+        # window and hop here is for calculating rms in a splitted audio
         X = librosa.stft(self.y, n_fft=window_t*self.sr, hop_length=hop_t*self.sr, win_length=window_t*self.sr, window='hanning')
         Y = librosa.amplitude_to_db(np.abs(X), ref=np.max)
 
@@ -40,7 +40,7 @@ class AudioFeature:
         # print(mfcc_feature.shape)
         self._concat_features(mfcc_feature)
 
-    def _extract_spectral_contrast(self, n_bands=3):
+    def _extract_spectral_contrast(self, n_bands=5):
         spec_con = librosa.feature.spectral_contrast(
             y=self.y, sr=self.sr, n_bands=n_bands
         )
@@ -75,29 +75,15 @@ class AudioFeature:
         )
 
         for feature in feature_list:
-            print(f'extracting feature {feature}')
             extract_fn[feature]()
 
-        if save_local:
-            self._save_local()
-
-    def _save_local(self, clean_source=True):
-        out_name = self.src_path.split("/")[-1]
-        out_name = out_name.replace(".wav", "")
-
-        filename = f"data/{out_name}.pkl"
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-        with open(filename, "wb") as f:
-            pickle.dump(self, f)
-
-        if clean_source:
-            self.y = None
 
 if __name__ == "__main__":
     src_path = f"data/test.wav"
     label = 'label1'
     fold = 1
-    audio = AudioFeature(src_path, label, fold)
+    y, sr = librosa.load(src_path, mono=True, sr=None)
+    audio = AudioFeature(y, sr, label, fold)
     audio.extract_features(["rms", "mfcc", "spectral"])
 
     print(audio.features.shape)
