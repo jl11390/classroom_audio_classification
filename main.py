@@ -10,43 +10,37 @@ import numpy as np
 '''
 Use this function to get metadata when ready
 '''
-def save_features(audio_features, file_path):
+def save_features(features, file_path):
         out_name = file_path.split("/")[-1]
         out_name = out_name.replace(".wav", "")
 
         filename = f"data/{out_name}.pkl"
         os.makedirs(os.path.dirname(filename), exist_ok=True)
         with open(filename, "wb") as f:
-            pickle.dump(audio_features, f)
-
-def parse_metadata(path):
-    meta_df = pd.read_csv(path)
-    meta_df = meta_df[["file_name", "label_lst", "time_lst", "fold"]]
-    meta = zip(meta_df["file_name"], meta_df["label_lst"], meta_df["time_lst"], meta_df["fold"])
-
-    return meta
+            pickle.dump(features, f)
 
 if __name__ == "__main__":
     load_feature =  False
 
-    # metadata = parse_metadata("metadata/metadata.csv")
-    meta_df = pd.DataFrame(data={'file_name':['test.wav'], 'label_lst':[[1, 1, 2, 3, 2, 3, 4]], 
-    'time_lst':[[0, 20, 55, 70, 150, 180, 220, 299.36572916666665]], 'fold':[1]})
-    metadata = zip(meta_df["file_name"], meta_df["label_lst"], meta_df["time_lst"], meta_df["fold"])
+    # metadata = parse_metadata("data/label_demo.csv")
+    meta_df = pd.DataFrame(data={'file_name':['test.wav'], 'metadata_file':['test.json'], 'fold':[1]})
+    metadata = zip(meta_df["file_name"], meta_df["metadata_file"], meta_df["fold"])
 
-    # specify extend time and target time in seconds
-    extend_t, target_t = 10, 1
-    audiosplitter = AudioSplitter(extend_t, target_t)
+    # specify time of fraction and step
+    frac_t, step_t = 5, 1
 
     # list to hold all instances of audios
     audio_features_all = []
     for row in metadata:
 
         audio_features = []
-        file_name, label_list, time_list, fold = row
-        print(f'extracting features from {file_name}')
-        fn = file_name.replace(".wav", "")
+        src_path, metadata_path, fold = row
+        print(f'extracting features from {src_path}')
+        fn = src_path.replace(".wav", "")
         transformed_path = f"data//{fn}.pkl"
+        file_path = f"data/{src_path}"
+        metadata_path = f"data//{fn}.json"
+        audiosplitter = AudioSplitter(file_path, metadata_path, fold)
 
         if load_feature and os.path.isfile(transformed_path):
             # if the file exists as a .pkl already, then load it
@@ -54,21 +48,22 @@ if __name__ == "__main__":
                 audio_features = pickle.load(f)
         else:
             # if the file doesn't exist, then extract its features from the source data and save the result
-            file_path = f"data/{file_name}"
+            
 
-            datas, labels, sr = audiosplitter.split_audio(file_path, label_list, time_list)
+            audiosplitter.split_audio(frac_t, step_t)
+            datas, labels, sr = audiosplitter.datas, audiosplitter.labels, audiosplitter.sr
             for data, label in zip(datas, labels):
                 audio = AudioFeature(data, sr, label, fold)
                 audio.extract_features(["mfcc", "spectral", "rms"])
                 audio_features.append(audio)
-
-            save_features(audio_features, file_path)
         
         audio_features_all.extend(audio_features)
 
-    feature_matrix = np.vstack([audio.features for audio in audio_features])
-    labels = np.array([audio.label for audio in audio_features])
-    folds = np.array([audio.fold for audio in audio_features])
+    save_features(audio_features_all, file_path)
+
+    feature_matrix = np.vstack([audio.features for audio in audio_features_all])
+    labels = np.array([audio.label for audio in audio_features_all])
+    folds = np.array([audio.fold for audio in audio_features_all])
 
     print(f'final feature matrix shape: {feature_matrix.shape}')
     print(f'final label array shape:{labels.shape}')
