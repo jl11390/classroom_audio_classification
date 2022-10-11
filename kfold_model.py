@@ -1,7 +1,7 @@
 from sklearn.model_selection import LeaveOneGroupOut, StratifiedKFold, GridSearchCV
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import accuracy_score, classification_report, f1_score
-from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.preprocessing import StandardScaler
 import numpy as np
 import random
 
@@ -9,8 +9,7 @@ import random
 class KfoldModel:
     def __init__(self, feature_matrix, labels, folds, cfg):
         self.X = feature_matrix
-        self.encoder = LabelEncoder()
-        self.y = self.encoder.fit_transform(labels)
+        self.y = labels
         self.folds = folds
         self.cfg = cfg
 
