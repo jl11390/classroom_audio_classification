@@ -24,7 +24,7 @@ def save_features(features, fn):
 
 if __name__ == "__main__":
     # specify whether to use previous saved features and whether to overwrite
-    load_feature =  True
+    load_feature =  False
 
     with open('data/COAS/Annotation/project-3-at-2022-10-10-17-01-baad4ee5.json', 'r') as f: 
         data = json.load(f)
