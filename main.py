@@ -70,4 +70,4 @@ if __name__ == "__main__":
     annot_path = 'data/COAS/Annotation/project-3-at-2022-10-10-17-01-baad4ee5.json'
     audio_path = 'data/COAS/Audios'
     cache_path = 'data/COAS/Features/preprocessing.pkl'
-    load_and_train(annot_path, audio_path, cache_path, frac_t, step_t, load_cache=False, num_folds=5)
+    load_and_train(annot_path, audio_path, cache_path, frac_t, step_t, load_cache=True, num_folds=5)
