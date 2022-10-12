@@ -103,7 +103,7 @@ class AudioSplitter:
         """
         remove the data without a label (i.e[0,0,0,0]) and/or the data is a transition
         """
-        n_frames = self.labels[0]
+        n_frames = self.labels.shape[0]
         if remove_no_label_data:
             idx1 = self.labels.sum(axis=1) > 0
         else:
