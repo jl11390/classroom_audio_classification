@@ -16,7 +16,6 @@ class KfoldModel:
         self.val_fold_scores_ = []
 
     def train_kfold(self):
-
         logo = LeaveOneGroupOut()
         for train_index, test_index in logo.split(self.X, self.y, self.folds):
             X_train, X_test = self.X[train_index], self.X[test_index]

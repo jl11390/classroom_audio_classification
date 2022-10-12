@@ -12,6 +12,8 @@ import json
 '''
 Use this function to get metadata when ready
 '''
+
+
 def save_features(features, fn):
     output_path = 'data/COAS/Features'
     if not os.path.exists(output_path):
@@ -24,11 +26,11 @@ def save_features(features, fn):
 
 if __name__ == "__main__":
     # specify whether to use previous saved features and whether to overwrite
-    load_feature =  False
+    load_feature = False
 
-    with open('data/COAS/Annotation/project-3-at-2022-10-10-17-01-baad4ee5.json', 'r') as f: 
+    with open('data/COAS/Annotation/project-3-at-2022-10-10-17-01-baad4ee5.json', 'r') as f:
         data = json.load(f)
-    
+
     # specify time of fraction and step
     frac_t, step_t = 10, 2
     # use sampled data to build pipeline
@@ -40,7 +42,6 @@ if __name__ == "__main__":
         file_name = metadict["video_url"].split("-")[-1]
         audio_features = []
 
-        
         fn = file_name.replace(".mp4", "")
         transformed_path = f"data/COAS/Features/{fn}.pkl"
         file_path = f"data/COAS/Audios/{fn}.wav"
@@ -58,7 +59,7 @@ if __name__ == "__main__":
             datas, labels, sr = audiosplitter.datas, audiosplitter.labels, audiosplitter.sr
             for data, label in zip(datas, labels):
                 # assign fold according to the total number of audios
-                fold = int((i+1)*10/num_audios)
+                fold = int((i + 1) * 10 / num_audios)
                 audio = AudioFeature(data, sr, label, fold)
                 audio.extract_features(["mfcc", "spectral", "rms"])
                 audio_features.append(audio)
@@ -67,8 +68,7 @@ if __name__ == "__main__":
 
         audio_features_all.extend(audio_features)
         print(f'number of sub audios extracted: {len(audio_features_all)}')
-        
-        
+
     feature_matrix = np.vstack([audio.features for audio in audio_features_all])
     labels = np.array([audio.label for audio in audio_features_all])
     folds = np.array([audio.fold for audio in audio_features_all])

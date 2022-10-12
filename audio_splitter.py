@@ -1,14 +1,15 @@
-from cProfile import label
-from dataclasses import dataclass
 import librosa
 import numpy as np
-from pathlib import Path
-import json
-import os
 
 '''
-this class should cut audio with respect to specified extend time and target time
+this class should cut audio with respect to specified fraction time and step time
 '''
+
+
+# label the transition ('transition', [1,0,0,0])
+# class: lecture, individual work, collaborative work
+
+
 class AudioSplitter:
     def __init__(self, src_path, metadata_dict):
         self.src_path = src_path
@@ -18,14 +19,14 @@ class AudioSplitter:
         self.features = None
         self.labels = None
         self.label_dict = {
-            'Lecturing'.lower():0, 
-            'Q/A'.lower():1, 
-            'Teacher-led Conversation'.lower():2, 
-            'Individual Student Work'.lower():3,
-            'Collaborative Student Work'.lower():4,
-            'Student Presentation'.lower():5,
-            'Other'.lower():6
-            }
+            'Lecturing'.lower(): 0,
+            'Q/A'.lower(): 1,
+            'Teacher-led Conversation'.lower(): 2,
+            'Individual Student Work'.lower(): 3,
+            'Collaborative Student Work'.lower(): 4,
+            'Student Presentation'.lower(): 5,
+            'Other'.lower(): 6
+        }
 
     def _get_label(self, right_t, left_t):
         assert left_t < right_t
@@ -58,8 +59,8 @@ class AudioSplitter:
         """
 
         # number of fractions & init arrays
-        n = round(len(self.y)/(step_t*self.sr))
-        self.datas = np.zeros(shape=(n, frac_t*self.sr))
+        n = round(len(self.y) / (step_t * self.sr))
+        self.datas = np.zeros(shape=(n, frac_t * self.sr))
         self.labels = np.zeros(shape=(n, len(self.label_dict)))
 
         for i in range(n):
@@ -70,55 +71,41 @@ class AudioSplitter:
             if right_i > len(self.y):
                 right_i = len(self.y)
                 left_i = right_i - frac_t * self.sr
-                right_t = right_i/self.sr
-                left_t = left_i/self.sr
+                right_t = right_i / self.sr
+                left_t = left_i / self.sr
             self.datas[i] = self.y[left_i:right_i]
             self.labels[i] = self._get_label(right_t, left_t)
 
 
 if __name__ == "__main__":
     metadata_dict = {
-    "video_url": "/data/upload/3/b3b9ac82-Technology_1_008.mp4",
-    "id": 59,
-    "tricks": [
-      {
-        "start": 71.5442350718065,
-        "end": 90.58838397581255,
-        "labels": [
-          "Collaborative Student Work"
-        ]
-      },
-      {
-        "start": 89.55897052154195,
-        "end": 267.64749811035523,
-        "labels": [
-          "Lecturing"
-        ]
-      },
-      {
-        "start": 267.13279138321997,
-        "end": 346.39762736205597,
-        "labels": [
-          "Q/A"
-        ]
-      },
-      {
-        "start": 344.85350718065007,
-        "end": 451.3977996976568,
-        "labels": [
-          "Lecturing"
-        ]
-      }
-    ],
-    "annotator": 1,
-    "annotation_id": 55,
-    "created_at": "2022-10-10T16:49:13.958516Z",
-    "updated_at": "2022-10-10T16:49:13.958577Z",
-    "lead_time": 155.885
+        "video_url": "/data/upload/3/f34752bc-Games_6.mp4",
+        "id": 10,
+        "tricks": [
+            {
+                "start": 0,
+                "end": 13.719703703703702,
+                "labels": [
+                    "Other"
+                ]
+            },
+            {
+                "start": 11.759746031746031,
+                "end": 1726.722708994709,
+                "labels": [
+                    "Teacher-Led Conversation"
+                ]
+            }
+        ],
+        "annotator": 1,
+        "annotation_id": 8,
+        "created_at": "2022-10-10T13:56:01.469611Z",
+        "updated_at": "2022-10-10T13:56:01.469646Z",
+        "lead_time": 182.597
     }
 
     frac_t, step_t = 5, 1
-    src_path = 'data/COAS/Audios/Technology_1_008.wav'
+    src_path = 'data/COAS/Audios/Games_6.wav'
 
     audiosplitter = AudioSplitter(src_path, metadata_dict)
     audiosplitter.split_audio(frac_t, step_t)
