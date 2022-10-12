@@ -35,6 +35,7 @@ class AudioSplitter:
                 'Collaborative Student Work': 2,
                 'Other': 3
             }
+        self.label_dict = dict((k.lower(), v) for k, v in self.label_dict.items())
         self.labels_length = len(set(self.label_dict.values()))
 
     def split_audio(self, frac_t, step_t, threshold=0.3):
@@ -93,7 +94,7 @@ class AudioSplitter:
             overlap_lst.append(overlap)
 
             if overlap >= frac_t * threshold:
-                label_arr[self.label_dict[labels[0]]] = 1
+                label_arr[self.label_dict[labels[0].lower()]] = 1
         for j in range(len(overlap_lst) - 1):
             if overlap_lst[j] > 0 and overlap_lst[j + 1] > 0:
                 transition = True

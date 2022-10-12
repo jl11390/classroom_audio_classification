@@ -1,9 +1,6 @@
-from sklearn.model_selection import LeaveOneGroupOut, StratifiedKFold, GridSearchCV
-from sklearn.pipeline import Pipeline
-from sklearn.metrics import accuracy_score, classification_report, f1_score
+from sklearn.model_selection import LeaveOneGroupOut
+from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import StandardScaler
-import numpy as np
-import random
 
 
 class KfoldModel:
@@ -12,7 +9,6 @@ class KfoldModel:
         self.y = labels
         self.folds = folds
         self.cfg = cfg
-
         self.val_fold_scores_ = []
 
     def train_kfold(self):
@@ -30,6 +26,8 @@ class KfoldModel:
 
             y_pred = clf.predict(X_test)
 
+            # In multilabel classification, this function computes subset accuracy:
+            # the set of labels predicted for a sample must exactly match the corresponding set of labels in y_true.
             fold_acc = accuracy_score(y_test, y_pred)
             self.val_fold_scores_.append(fold_acc)
 
