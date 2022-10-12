@@ -3,9 +3,6 @@
   <component name="ChangeListManager">
     <list default="true" id="f0de5b96-ae4f-49d0-a9fd-b212be7a0c93" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/AudioSplitter.py" beforeDir="false" afterPath="$PROJECT_DIR$/AudioSplitter.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/feature_extract.py" beforeDir="false" afterPath="$PROJECT_DIR$/feature_extract.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/kfold_model.py" beforeDir="false" afterPath="$PROJECT_DIR$/kfold_model.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />

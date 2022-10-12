@@ -32,7 +32,7 @@ def load_and_train(annot_path, audio_path, cache_path, frac_t, step_t, load_cach
             datas, labels = audiosplitter.datas, audiosplitter.labels
             for idx, bundle in enumerate(zip(datas, labels)):
                 data, label = bundle
-                fold = idx & num_folds
+                fold = idx % num_folds
                 audio_feature = AudioFeature(data, label, fold)
                 audio_feature.extract_features(['mfcc', 'spectral', 'rms'])
                 feature_matrix = np.vstack([feature_matrix, audio_feature.features]) if feature_matrix is not None else audio_feature.features
