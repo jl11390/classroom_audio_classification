@@ -12,6 +12,7 @@ import warnings
 def load_and_train(annot_path, audio_path, cache_path, frac_t, step_t, load_cache=False, num_folds=5):
     with open(annot_path, 'r') as f:
         annot = json.load(f)
+    f.close()
     n = len(annot)
     print(f"{n} audios feed into the pipeline")
     if load_cache:
@@ -22,11 +23,16 @@ def load_and_train(annot_path, audio_path, cache_path, frac_t, step_t, load_cach
         feature_matrix = None
         labels_matrix = None
         folds = []
+        print(1)
         for i, metadict in enumerate(annot):
             file_name_mp4 = metadict['video_url'].split('-')[-1]
             file_name = file_name_mp4.replace('.mp4', '.wav')
             file_path = os.path.join(audio_path, file_name)
+            print(2)
+            print(file_path)
+            print(metadict)
             audiosplitter = AudioSplitter(file_path, metadict, target_class_version=1)
+            print(2)
             audiosplitter.split_audio(frac_t, step_t, threshold=0.3)
             audiosplitter.remove_noisy_data(remove_no_label_data=True, remove_transition=True)
             datas, labels = audiosplitter.datas, audiosplitter.labels
@@ -51,6 +57,7 @@ def load_and_train(annot_path, audio_path, cache_path, frac_t, step_t, load_cach
             bootstrap=True,
         ),
     )
+    print(np.sum(labels_matrix, axis=0)/np.sum(labels_matrix))
     model = KfoldModel(feature_matrix, labels_matrix, folds, model_cfg)
     fold_acc = model.train_kfold()
     print(fold_acc)

@@ -167,3 +167,4 @@ if __name__ == "__main__":
     print(audiosplitter.datas.shape, audiosplitter.labels.shape, audiosplitter.transition_indicator.shape)
     audiosplitter.remove_noisy_data(remove_no_label_data=True, remove_transition=True)
     print(audiosplitter.datas.shape, audiosplitter.labels.shape, audiosplitter.transition_indicator.shape)
+    print(np.sum(audiosplitter.labels, axis=0)/np.sum(audiosplitter.labels))
