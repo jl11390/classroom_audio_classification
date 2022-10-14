@@ -4,3 +4,5 @@ archive/
 */.ipynb_checkpoints/*
 .vscode
 *.ipynb
+.idea
+__pycache__
