@@ -90,6 +90,8 @@ class AudioSplitter:
                     overlap = end_t - left_t
             if end_t >= right_t >= start_t > left_t:
                 overlap = right_t - start_t
+            if left_t < start_t and right_t > end_t:  # unlikely case
+                overlap = end_t - start_t
 
             overlap_lst.append(overlap)
 
@@ -108,12 +110,12 @@ class AudioSplitter:
         if remove_no_label_data:
             idx1 = self.labels.sum(axis=1) > 0
         else:
-            idx1 = np.ones(n_frames)
+            idx1 = np.ones(n_frames).astype(bool)
         if remove_transition:
             idx2 = self.transition_indicator == 0
         else:
-            idx2 = np.ones(n_frames)
-        idx = idx1 & idx2
+            idx2 = np.ones(n_frames).astype(bool)
+        idx = (idx1 & idx2)
         self.datas = self.datas[idx]
         self.labels = self.labels[idx]
         self.transition_indicator = self.transition_indicator[idx]
@@ -160,11 +162,9 @@ if __name__ == "__main__":
         "lead_time": 155.885
     }
 
-    frac_t, step_t = 20, 2
+    frac_t, step_t = 10, 2
     src_path = 'data/COAS/Audios/Technology_1_008.wav'
-    audiosplitter = AudioSplitter(src_path, metadata_dict, target_class_version=1)
+    audiosplitter = AudioSplitter(src_path, metadata_dict, target_class_version=0)
     audiosplitter.split_audio(frac_t, step_t, threshold=0.3)
-    print(audiosplitter.datas.shape, audiosplitter.labels.shape, audiosplitter.transition_indicator.shape)
-    audiosplitter.remove_noisy_data(remove_no_label_data=True, remove_transition=True)
-    print(audiosplitter.datas.shape, audiosplitter.labels.shape, audiosplitter.transition_indicator.shape)
-    print(np.sum(audiosplitter.labels, axis=0)/np.sum(audiosplitter.labels))
+    audiosplitter.remove_noisy_data(remove_no_label_data=True, remove_transition=False)
+    print(np.sum(audiosplitter.labels, axis=0) / np.sum(audiosplitter.labels))
