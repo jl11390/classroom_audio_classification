@@ -160,7 +160,7 @@ if __name__ == "__main__":
         "lead_time": 155.885
     }
 
-    frac_t, step_t = 10, 2
+    frac_t, step_t = 20, 2
     src_path = 'data/COAS/Audios/Technology_1_008.wav'
     audiosplitter = AudioSplitter(src_path, metadata_dict, target_class_version=1)
     audiosplitter.split_audio(frac_t, step_t, threshold=0.3)

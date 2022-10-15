@@ -3,7 +3,6 @@ from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import StandardScaler
 import pickle
 from sklearn.ensemble import RandomForestClassifier
-from librosa.sequence import viterbi_binary
 import numpy as np
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -36,13 +35,6 @@ class KfoldModel:
             fold_acc = accuracy_score(y_test, y_pred)
             self.val_fold_scores_.append(fold_acc)
 
-            y_pred_prob = clf.predict_proba(X_test)
-            prob = np.array([y_pred_prob_label[:,1] for y_pred_prob_label in y_pred_prob])
-            a = np.array([[0.95, 0.05], [0.05, 0.95]])
-            transition = np.repeat(a[np.newaxis, :, :], 4, axis=0)
-            binary_pred = viterbi_binary(prob, transition)
-            # TODO: write a def or class to evaluate the performance of binary prediction
-
         return self.val_fold_scores_
 
 if __name__ == "__main__":
@@ -61,3 +53,4 @@ if __name__ == "__main__":
     )
     model = KfoldModel(feature_matrix, labels_matrix, folds, model_cfg)
     fold_acc = model.train_kfold()
+    print(fold_acc)

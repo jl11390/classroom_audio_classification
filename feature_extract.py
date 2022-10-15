@@ -3,10 +3,9 @@ import numpy as np
 
 
 class AudioFeature:
-    def __init__(self, y, label, fold, sr=22050):
-        self.y, self.sr = y, sr
+    def __init__(self, y, label, sr=22050):
+        self.y, self.sr = np.array(y), sr
         self.label = label
-        self.fold = fold
         self.features = None
 
     def _concat_features(self, feature):
