@@ -22,6 +22,8 @@ class DataLoader:
 
         self.target_class_version = target_class_version
 
+        self.label_dict = None
+
     def save_pickle(self, features_labels, save_path):
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
@@ -38,6 +40,7 @@ class DataLoader:
             features_matrix = None
             labels_matrix = None
             audiosplitter = AudioSplitter(self.file_path, self.metadict, target_class_version=self.target_class_version)
+            self.label_dict = audiosplitter.label_dict
             audiosplitter.split_audio(self.frac_t, self.step_t, threshold=0.3)
             audiosplitter.remove_noisy_data(remove_no_label_data=True, remove_transition=False)
             datas, labels = audiosplitter.datas, audiosplitter.labels
