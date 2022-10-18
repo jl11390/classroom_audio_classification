@@ -12,7 +12,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import LeaveOneGroupOut
 from sklearn.model_selection import RandomizedSearchCV
 from librosa.sequence import viterbi_binary
-import sed_eval
+from Evaluation import Evaluation
 
 
 class CASED:
@@ -32,11 +32,6 @@ class CASED:
         # evaluate accuracy on training data
         self.val_fold_scores_ = []
 
-        self.annot_json = None
-        #self.label_dict = None
-        self.estimated_event_list = []
-        self.class_wise_average_metrics = None
-
         self.label_dict = {
             'Lecturing': 0,
             'Q/A': 1,
@@ -54,7 +49,6 @@ class CASED:
         with open(annot_path, 'r') as f:
             annot = json.load(f)
         n = len(annot)
-        self.annot_json = annot
 
         features_matrix_all = None
         labels_matrix_all = None
@@ -67,7 +61,6 @@ class CASED:
             dataloader = DataLoader(file_name, audio_path, cache_path, metadict, self.frac_t, self.step_t,
                                     target_class_version=self.target_class_version)
             features_matrix, labels_matrix = dataloader.load_data(load_cache=load_cache)
-            #self.label_dict = dataloader.label_dict
 
             features_matrix_all = np.vstack(
                 [features_matrix_all, features_matrix]) if features_matrix_all is not None else features_matrix
@@ -148,7 +141,7 @@ class CASED:
             fold_acc = accuracy_score(y_test, y_pred)
             self.val_fold_scores_.append(fold_acc)
 
-    def predict_viterbi_binary(self, src_path, transit_prob=0.05):
+    def predict_annotation(self, src_path, transit_prob=0.05):
         """predict the smoothed (onset,offset) sequence for each target class"""
         assert self.best_model is not None, 'get the best model first!'
         features_matrix = wav_transform(src_path, self.frac_t, self.step_t)  # transform wav file into feature matrix
@@ -171,36 +164,13 @@ class CASED:
         start_stop = np.column_stack((starts[:,0], starts[:,1], stops[:,1]-1))
 
         # Return (onset,offset) sequence for all target classes
+        estimated_event_list = []
         inv_map = {v: k for k, v in self.label_dict.items()}
         for detected in start_stop:
             start_t = detected[1] * self.step_t
             end_t = detected[2] * self.step_t + self.frac_t
-        self.estimated_event_list.append({'event_onset': start_t, 'event_offset': end_t, 'event_label': inv_map[detected[0]]})
-
-    def evaluate_viterbi_binary(self, estimated_event_list, test_audio, annot_json):
-        """evaluate the estimated_event_list against reference_event_list using sed_eval"""
-        test_name = test_audio.split('/')[-1]
-        for file in annot_json:
-            file_name_mp4 = file['video_url'].split('-')[-1]
-            file_name = file_name_mp4.replace('.mp4', '.wav')
-            if file_name == test_name:
-                reference_event_list = file['tricks']
-        event_label_list = []
-        for dict in reference_event_list:
-            dict['event_onset'] = dict['start']
-            dict['event_offset'] = dict['end']
-            dict['event_label'] = dict['labels'][0]
-            event_label_list.append(dict['event_label'])
-            del dict['start']
-            del dict['end']
-            del dict['labels']
-        event_label_list = list(set(event_label_list))
-        segment_based_metrics = sed_eval.sound_event.SegmentBasedMetrics(event_label_list,time_resolution=1.0) # adjust parameter
-        segment_based_metrics.evaluate(reference_event_list,estimated_event_list)
-        # Get only certain metrics
-        self.class_wise_average_metrics = segment_based_metrics.results_class_wise_average_metrics()
-        # Get all metrices
-        #all_class_wise_metrics = segment_based_metrics.results_class_wise_metrics()
+            estimated_event_list.append({'event_onset': start_t, 'event_offset': end_t, 'event_label': inv_map[detected[0]]})
+        return estimated_event_list
 
 if __name__ == '__main__':
     warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -215,6 +185,7 @@ if __name__ == '__main__':
     cased.randomized_search_cv(n_iter_search=20, cache_path=model_cache_path, load_cache=True)
     cased.evaluate_accuracy()
     print(cased.val_fold_scores_)
-    cased.predict_viterbi_binary(test_audio, transit_prob=0.05)
-    cased.evaluate_viterbi_binary(cased.estimated_event_list, test_audio, cased.annot_json)
-    print("Class Wise Average Metrics:", cased.class_wise_average_metrics['accuracy'])
+    estimated_event_list = cased.predict_annotation(test_audio, transit_prob=0.05)
+    evaluation = Evaluation(estimated_event_list, test_audio, annot_path)
+    evaluation_result = evaluation.evaluate_single_file()
+    print(evaluation_result)
