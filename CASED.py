@@ -1,4 +1,6 @@
 """Classroom Activity Sound Effect Detection"""
+from cgi import test
+from email.mime import audio
 import json
 import os
 import warnings
@@ -14,12 +16,21 @@ from sklearn.model_selection import RandomizedSearchCV
 from librosa.sequence import viterbi_binary
 from Evaluation import Evaluation
 
+def get_metadict(file_name, annot):
+    for metadict in annot:
+        # note: this way to get file name is not ideal
+        file_name_mp4 = metadict['video_url'].split('-')[-1]
+        file_name_wav = file_name_mp4.replace('.mp4', '.wav')
+        if file_name == file_name_wav:
+            return metadict
+    return None
 
 class CASED:
-    def __init__(self, frac_t, step_t, target_class_version=0):
+    def __init__(self, frac_t, long_frac_t, step_t, target_class_version=0):
         # init info
         self.frac_t = frac_t
         self.step_t = step_t
+        self.long_frac_t = long_frac_t
         self.target_class_version = target_class_version
         # load training data
         self.features_matrix_all = None
@@ -48,17 +59,18 @@ class CASED:
         """
         with open(annot_path, 'r') as f:
             annot = json.load(f)
-        n = len(annot)
+        audiofiles = [f for f in os.listdir(audio_path) if f.endswith('wav')]
+        n = len(audiofiles)
 
         features_matrix_all = None
         labels_matrix_all = None
         folds_all = []
 
-        for i, metadict in enumerate(annot):
-            file_name_mp4 = metadict['video_url'].split('-')[-1]
-            file_name = file_name_mp4.replace('.mp4', '.wav')
-
-            dataloader = DataLoader(file_name, audio_path, cache_path, metadict, self.frac_t, self.step_t,
+        for i, file_name in enumerate(audiofiles):
+            metadict = get_metadict(file_name, annot)
+            if metadict is None:
+                continue
+            dataloader = DataLoader(file_name, audio_path, cache_path, metadict, self.frac_t, self.long_frac_t, self.step_t,
                                     target_class_version=self.target_class_version)
             features_matrix, labels_matrix = dataloader.load_data(load_cache=load_cache)
 
@@ -122,32 +134,13 @@ class CASED:
             with open(os.path.join(cache_path, 'best_estimator.pkl'), "wb") as f:
                 pickle.dump(self.best_model, f)
 
-    def evaluate_accuracy(self):
-        """evaluate the accuracy for training data, just for curiosity"""
-        assert self.features_matrix_all is not None and self.best_model is not None, 'not now!'
-        print('it might take a while, be patient!')
-        logo = LeaveOneGroupOut()
-        for train_index, test_index in logo.split(self.features_matrix_all, self.labels_matrix_all, self.folds_all):
-            X_train, X_test = self.features_matrix_all[train_index], self.features_matrix_all[test_index]
-            y_train, y_test = self.labels_matrix_all[train_index], self.labels_matrix_all[test_index]
-
-            clf = self.best_model
-            clf.fit(X_train, y_train)
-
-            y_pred = clf.predict(X_test)
-
-            # In multilabel classification, this function computes subset accuracy:
-            # the set of labels predicted for a sample must exactly match the corresponding set of labels in y_true.
-            fold_acc = accuracy_score(y_test, y_pred)
-            self.val_fold_scores_.append(fold_acc)
-
     def predict_annotation(self, src_path, transit_prob=0.05):
         """predict the smoothed (onset,offset) sequence for each target class"""
         assert self.best_model is not None, 'get the best model first!'
         features_matrix = wav_transform(src_path, self.frac_t, self.step_t)  # transform wav file into feature matrix
         features_matrix = self.standard_scaler.fit_transform(features_matrix)
         y_pred_prob = self.best_model.predict_proba(features_matrix)
-        y_pred = self.best_model.predict(features_matrix)
+
         prob = np.array(
             [y_pred_prob_label[:, 1] for y_pred_prob_label in y_pred_prob])  # proba matrix [num classes, num samples]
         transition_mtx = np.array([[1 - transit_prob, transit_prob], [transit_prob, 1 - transit_prob]])
@@ -174,18 +167,40 @@ class CASED:
 
 if __name__ == '__main__':
     warnings.simplefilter(action='ignore', category=FutureWarning)
-    frac_t, step_t = 10, 2
+    frac_t, long_frac_t, step_t = 5, 20, 2
     annot_path = 'data/COAS/Annotation/project-3-at-2022-10-10-17-01-baad4ee5.json'
     audio_path = 'data/COAS/Audios'
     cache_path = 'data/COAS/Features'
     model_cache_path = 'data/COAS/Model'
-    test_audio = 'data/COAS/TestAudios/Technology_1_008.wav'
-    cased = CASED(frac_t, step_t, target_class_version=0)
+    audio_test_path = 'data/COAS/Audios_test'
+    cased = CASED(frac_t, long_frac_t, step_t, target_class_version=0)
     cased.load_train_data(annot_path, audio_path, cache_path, load_cache=True, num_folds=5)
-    cased.randomized_search_cv(n_iter_search=20, cache_path=model_cache_path, load_cache=True)
-    cased.evaluate_accuracy()
-    print(cased.val_fold_scores_)
-    estimated_event_list = cased.predict_annotation(test_audio, transit_prob=0.05)
-    evaluation = Evaluation(estimated_event_list, test_audio, annot_path)
-    evaluation_result = evaluation.evaluate_single_file()
-    print(evaluation_result)
+    cased.randomized_search_cv(n_iter_search=10, cache_path=model_cache_path, load_cache=True)
+
+    
+    # evaluate on test audios
+    ##################
+    # TODOs:
+    # 1. put wav_transform into audio splitter and use dataloader.load_pred_data(frac_t, long_frac_t, step_t)? so that it can be exactly the same features
+    # 2. add a global function to process labels? There are mismatches, upper and lower case issues right now
+    # 3. deal with nan in evaluate, maybe put them as 0
+    '''
+    with open(annot_path, 'r') as f:
+            annot = json.load(f)
+    audiofiles_test = [f for f in os.listdir(audio_test_path) if f.endswith('wav')]
+    evaluation = Evaluation()
+    evaluation_results = {}
+    for test_audio in audiofiles_test:
+        metadict = get_metadict(test_audio, annot)
+        if metadict is None:
+            print(f"{test_audio} not found in annot")
+            continue
+        else:
+            reference_event_list = metadict['tricks']
+        test_src_path = f"{audio_test_path}/{test_audio}"
+        estimated_event_list = cased.predict_annotation(test_src_path, transit_prob=0.05)
+        evaluation_result = evaluation.evaluate_single_file(estimated_event_list, reference_event_list)
+        evaluation_results[test_audio] = evaluation_result
+
+    print(evaluation_results)
+    '''

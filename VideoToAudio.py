@@ -20,14 +20,23 @@ def convert_video_to_audio_moviepy(video_file, data_path, output_path, output_ex
 if __name__ == "__main__":
     data_path = 'data/COAS/Videos'
     output_path = 'data/COAS/Audios'
-    isExist = os.path.exists(output_path)
-    if not isExist:
+    output_test_path = 'data/COAS/Audios_test'
+    if not os.path.exists(output_path):
         os.makedirs(output_path)
+    if not os.path.exists(output_test_path):
+        os.makedirs(output_test_path)
     # List all files under video folder
     videofiles = [f for f in listdir(data_path) if isfile(join(data_path, f)) and not f.startswith('.')]
+    num_train = int(len(videofiles) * 0.9)
     # Extract audios from videos
-    for file in videofiles:
-        convert_video_to_audio_moviepy(file, data_path, output_path, output_ext="wav")
+    for i, file in enumerate(videofiles):
+        if i <= num_train:
+            convert_video_to_audio_moviepy(file, data_path, output_path, output_ext="wav")
+        else:
+            convert_video_to_audio_moviepy(file, data_path, output_test_path, output_ext="wav")
+
     # List all files under audio folder
     audiofiles = [f for f in listdir(output_path) if f.endswith('wav')]
-    print(f'{len(audiofiles)} audio files extracted')
+    print(f'{len(audiofiles)} audio files extracted for train')
+    audiofiles_test = [f for f in listdir(output_test_path) if f.endswith('wav')]
+    print(f'{len(audiofiles_test)} audio files extracted for train')
