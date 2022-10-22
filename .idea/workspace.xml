@@ -2,16 +2,13 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="f0de5b96-ae4f-49d0-a9fd-b212be7a0c93" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/WavToFeatures.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/log.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/AudioSplitter.py" beforeDir="false" afterPath="$PROJECT_DIR$/AudioSplitter.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/audio_splitter.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data_loader.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/environment.yml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/feature_extract.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/kfold_model.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/video_to_audio.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/CASED.py" beforeDir="false" afterPath="$PROJECT_DIR$/CASED.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DataLoader.py" beforeDir="false" afterPath="$PROJECT_DIR$/DataLoader.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Evaluation.py" beforeDir="false" afterPath="$PROJECT_DIR$/Evaluation.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/VideoToAudio.py" beforeDir="false" afterPath="$PROJECT_DIR$/VideoToAudio.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -107,7 +104,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="main" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="VideoToAudio" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="classroom_audio_classification" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -119,7 +116,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/main.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/VideoToAudio.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -128,7 +125,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="video_to_audio" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="WavToFeatures" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="classroom_audio_classification" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -140,7 +137,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/video_to_audio.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/WavToFeatures.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -152,10 +149,10 @@
     <recent_temporary>
       <list>
         <item itemvalue="Python.CASED" />
+        <item itemvalue="Python.WavToFeatures" />
         <item itemvalue="Python.DataLoader" />
+        <item itemvalue="Python.VideoToAudio" />
         <item itemvalue="Python.AudioSplitter" />
-        <item itemvalue="Python.main" />
-        <item itemvalue="Python.video_to_audio" />
       </list>
     </recent_temporary>
   </component>

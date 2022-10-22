@@ -27,6 +27,7 @@ if __name__ == "__main__":
         os.makedirs(output_test_path)
     # List all files under video folder
     videofiles = [f for f in listdir(data_path) if isfile(join(data_path, f)) and not f.startswith('.')]
+    print(f'read in {len(videofiles)} videos')
     num_train = int(len(videofiles) * 0.9)
     # Extract audios from videos
     for i, file in enumerate(videofiles):
@@ -39,4 +40,4 @@ if __name__ == "__main__":
     audiofiles = [f for f in listdir(output_path) if f.endswith('wav')]
     print(f'{len(audiofiles)} audio files extracted for train')
     audiofiles_test = [f for f in listdir(output_test_path) if f.endswith('wav')]
-    print(f'{len(audiofiles_test)} audio files extracted for train')
+    print(f'{len(audiofiles_test)} audio files extracted for test')

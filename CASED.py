@@ -1,12 +1,11 @@
 """Classroom Activity Sound Effect Detection"""
-from cgi import test
-from email.mime import audio
 import json
 import os
 import warnings
 import pickle
 import numpy as np
-from DataLoader import DataLoader, wav_transform
+from DataLoader import DataLoader
+from WavToFeatures import WavToFeatures
 from scipy.stats import randint as sp_randint
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import f1_score, make_scorer, accuracy_score
@@ -16,14 +15,6 @@ from sklearn.model_selection import RandomizedSearchCV
 from librosa.sequence import viterbi_binary
 from Evaluation import Evaluation
 
-def get_metadict(file_name, annot):
-    for metadict in annot:
-        # note: this way to get file name is not ideal
-        file_name_mp4 = metadict['video_url'].split('-')[-1]
-        file_name_wav = file_name_mp4.replace('.mp4', '.wav')
-        if file_name == file_name_wav:
-            return metadict
-    return None
 
 class CASED:
     def __init__(self, frac_t, long_frac_t, step_t, target_class_version=0):
@@ -51,7 +42,16 @@ class CASED:
             'Individual Student Work': 4,
             'Collaborative Student Work': 5,
             'Other': 6
-            }
+        }
+
+    def get_metadict(self, annot, file_name):
+        for metadict in annot:
+            # note: this way to get file name is not ideal
+            file_name_mp4 = metadict['video_url'].split('-')[-1]
+            file_name_wav = file_name_mp4.replace('.mp4', '.wav')
+            if file_name == file_name_wav:
+                return metadict
+        return None
 
     def load_train_data(self, annot_path, audio_path, cache_path, load_cache=False, num_folds=5):
         """
@@ -67,11 +67,11 @@ class CASED:
         folds_all = []
 
         for i, file_name in enumerate(audiofiles):
-            metadict = get_metadict(file_name, annot)
+            metadict = self.get_metadict(annot, file_name)
             if metadict is None:
                 continue
-            dataloader = DataLoader(file_name, audio_path, cache_path, metadict, self.frac_t, self.long_frac_t, self.step_t,
-                                    target_class_version=self.target_class_version)
+            dataloader = DataLoader(file_name, audio_path, cache_path, metadict, self.frac_t, self.long_frac_t,
+                                    self.step_t, target_class_version=self.target_class_version)
             features_matrix, labels_matrix = dataloader.load_data(load_cache=load_cache)
 
             features_matrix_all = np.vstack(
@@ -122,8 +122,8 @@ class CASED:
 
             # run randomized cross validation
             random_search.fit(self.features_matrix_all, self.labels_matrix_all, groups=self.folds_all)
-            print(random_search.best_params_)
-            print(random_search.best_score_)
+            print(f'best params: {random_search.best_params_}')
+            print(f'best score: {random_search.best_score_}')
 
             # update the best model
             self.best_model = random_search.best_estimator_
@@ -134,10 +134,11 @@ class CASED:
             with open(os.path.join(cache_path, 'best_estimator.pkl'), "wb") as f:
                 pickle.dump(self.best_model, f)
 
-    def predict_annotation(self, src_path, transit_prob=0.05):
+    def predict_annotation(self, file_name, audio_path, transit_prob=0.05):
         """predict the smoothed (onset,offset) sequence for each target class"""
         assert self.best_model is not None, 'get the best model first!'
-        features_matrix = wav_transform(src_path, self.frac_t, self.step_t)  # transform wav file into feature matrix
+        # transform wav file into feature matrix
+        features_matrix = WavToFeatures(file_name, audio_path, frac_t, long_frac_t, step_t).transform()
         features_matrix = self.standard_scaler.fit_transform(features_matrix)
         y_pred_prob = self.best_model.predict_proba(features_matrix)
 
@@ -149,12 +150,12 @@ class CASED:
         binary_pred = viterbi_binary(prob, transition_mtx_full)
 
         # Get start time, end time of consecutive 1s for each class
-        append1 = np.zeros((binary_pred.shape[0],1),dtype=int)
-        counts_ext = np.column_stack((append1,binary_pred,append1))
-        diffs = np.diff((counts_ext==1).astype(int),axis=1)
+        append1 = np.zeros((binary_pred.shape[0], 1), dtype=int)
+        counts_ext = np.column_stack((append1, binary_pred, append1))
+        diffs = np.diff((counts_ext == 1).astype(int), axis=1)
         starts = np.argwhere(diffs == 1)
         stops = np.argwhere(diffs == -1)
-        start_stop = np.column_stack((starts[:,0], starts[:,1], stops[:,1]-1))
+        start_stop = np.column_stack((starts[:, 0], starts[:, 1], stops[:, 1] - 1))
 
         # Return (onset,offset) sequence for all target classes
         estimated_event_list = []
@@ -162,8 +163,10 @@ class CASED:
         for detected in start_stop:
             start_t = detected[1] * self.step_t
             end_t = detected[2] * self.step_t + self.frac_t
-            estimated_event_list.append({'event_onset': start_t, 'event_offset': end_t, 'event_label': inv_map[detected[0]]})
+            estimated_event_list.append(
+                {'event_onset': start_t, 'event_offset': end_t, 'event_label': inv_map[detected[0]]})
         return estimated_event_list
+
 
 if __name__ == '__main__':
     warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -175,9 +178,8 @@ if __name__ == '__main__':
     audio_test_path = 'data/COAS/Audios_test'
     cased = CASED(frac_t, long_frac_t, step_t, target_class_version=0)
     cased.load_train_data(annot_path, audio_path, cache_path, load_cache=True, num_folds=5)
-    cased.randomized_search_cv(n_iter_search=10, cache_path=model_cache_path, load_cache=True)
+    cased.randomized_search_cv(n_iter_search=30, cache_path=model_cache_path, load_cache=True)
 
-    
     # evaluate on test audios
     ##################
     # TODOs:

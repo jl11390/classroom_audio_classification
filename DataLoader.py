@@ -1,14 +1,14 @@
-from FeatureExtract import AudioFeature
-from AudioSplitter import AudioSplitter
-import librosa
 import pickle
 import os
 import numpy as np
+from FeatureExtract import AudioFeature
+from AudioSplitter import AudioSplitter
 
 
 # data loader for training
 class DataLoader:
-    def __init__(self, file_name, audio_path, cache_path, metadict, frac_t, long_frac_t, step_t, target_class_version=1):
+    def __init__(self, file_name, audio_path, cache_path, metadict, frac_t, long_frac_t, step_t,
+                 target_class_version=0):
         self.file_name = file_name  # wav file name
         self.audio_path = audio_path  # path that contains the wav files
         self.cache_path = cache_path  # path that contains the preprocessed features
@@ -64,61 +64,32 @@ class DataLoader:
         return features_matrix, labels_matrix
 
 
-# data loader for inference
-def wav_transform(src_path, frac_t, step_t):
-    """
-    transform a wav file into feature matrix, used for inference
-    """
-    y, sr = librosa.load(src_path, sr=22050, mono=True)
-    num_samples = len(y)  # total number of samples
-    audio_length = num_samples / sr  # audio length in seconds
-    num_samples_frame = frac_t * sr  # number of samples in each frame
-
-    n_frames = ((audio_length - frac_t) // step_t) + 1  # total number of frames that could be extracted
-    n_frames = int(n_frames)
-
-    datas = np.zeros((n_frames, num_samples_frame))  # contains the frames extracted from audio
-    for i in range(n_frames):
-        left_t = i * step_t
-        right_t = i * step_t + frac_t
-        datas[i] = y[left_t * sr:right_t * sr]
-    features_matrix = None
-    for data in datas:
-        audio_feature = AudioFeature(data, None)
-        audio_feature.extract_features(['mfcc', 'spectral', 'rms'])
-        features_matrix = np.vstack(
-            [features_matrix,
-             audio_feature.features]) if features_matrix is not None else audio_feature.features
-    print(f'successfully transformed the wav file into a {features_matrix.shape} matrix')
-    return features_matrix
-
-
 if __name__ == "__main__":
     file_name, audio_path, cache_path, frac_t, long_frac_t, step_t = 'Games_1.wav', 'data/COAS/Audios', 'data/COAS/Features', 5, 20, 2
     metadict = {
-    "video_url": "/data/upload/3/719b3708-Games_1.mp4",
-    "id": 5,
-    "tricks": [
-      {
-        "start": 1.0958367346938775,
-        "end": 14.245877551020408,
-        "labels": [
-          "Other"
-        ]
-      },
-      {
-        "start": 13.150040816326529,
-        "end": 321.8107210884354,
-        "labels": [
-          "Q/A"
-        ]
-      }
-    ],
-    "annotator": 1,
-    "annotation_id": 4,
-    "created_at": "2022-10-10T13:41:05.808485Z",
-    "updated_at": "2022-10-10T13:41:05.808545Z",
-    "lead_time": 144.207
+        "video_url": "/data/upload/3/719b3708-Games_1.mp4",
+        "id": 5,
+        "tricks": [
+            {
+                "start": 1.0958367346938775,
+                "end": 14.245877551020408,
+                "labels": [
+                    "Other"
+                ]
+            },
+            {
+                "start": 13.150040816326529,
+                "end": 321.8107210884354,
+                "labels": [
+                    "Q/A"
+                ]
+            }
+        ],
+        "annotator": 1,
+        "annotation_id": 4,
+        "created_at": "2022-10-10T13:41:05.808485Z",
+        "updated_at": "2022-10-10T13:41:05.808545Z",
+        "lead_time": 144.207
     }
 
     dataloader = DataLoader(file_name, audio_path, cache_path, metadict, frac_t, long_frac_t, step_t)
