@@ -20,8 +20,8 @@ class Evaluation:
             del event_dict['start']
             del event_dict['end']
             del event_dict['labels']
-        for event_dict in estimated_event_list:
-            event_dict['event_label'] = self.label_dict[event_dict['event_label']]
+        for est_event_dict in estimated_event_list:
+            est_event_dict['event_label'] = self.label_dict[est_event_dict['event_label']]
 
         event_label_list = list(set(val for val in self.label_dict.values())
 )

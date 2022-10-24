@@ -136,11 +136,11 @@ class CASED:
             with open(os.path.join(cache_path, 'best_estimator.pkl'), "wb") as f:
                 pickle.dump(self.best_model, f)
 
-    def predict_annotation(self, file_name, audio_path, transit_prob=0.05):
+    def predict_annotation(self, file_name, audio_path, transit_prob=0.05, load_cache=False):
         """predict the smoothed (onset,offset) sequence for each target class"""
         assert self.best_model is not None, 'get the best model first!'
         # transform wav file into feature matrix
-        features_matrix = WavToFeatures(file_name, audio_path, frac_t, long_frac_t, step_t).transform()
+        features_matrix = WavToFeatures(file_name, audio_path, cache_path, self.frac_t, self.long_frac_t, self.step_t).transform(load_cache=load_cache)
         features_matrix = self.standard_scaler.fit_transform(features_matrix)
         y_pred_prob = self.best_model.predict_proba(features_matrix)
 
@@ -186,9 +186,11 @@ if __name__ == '__main__':
     # evaluate on test audios
     ##################
     # TODOs:
-    # 1. put wav_transform into audio splitter and use dataloader.load_pred_data(frac_t, long_frac_t, step_t)? so that it can be exactly the same features
-    # 2. add a global function to process labels? There are mismatches, upper and lower case issues right now
-    # 3. deal with nan in evaluate, maybe put them as 0
+    # 1. let wavToFeatures support save cache
+    # 2. visualize prediction and evaluation result
+    # 3. sampling strategy
+    # 4. data augmentation
+
 
     with open(annot_path, 'r') as f:
             annot = json.load(f)
@@ -202,10 +204,13 @@ if __name__ == '__main__':
             continue
         else:
             reference_event_list = metadict['tricks']
-        estimated_event_list = cased.predict_annotation(test_audio, audio_test_path, transit_prob=0.05)
+        estimated_event_list = cased.predict_annotation(test_audio, audio_test_path, transit_prob=0.5, load_cache=True)
         evaluation_result = evaluation.evaluate_single_file(estimated_event_list, reference_event_list)
         evaluation_results[test_audio] = evaluation_result
 
     print(evaluation_results)
-    with open(f'{eval_result_path}/result.json', "w") as outfile:
-        json.dump(evaluation_results, outfile)
+
+    if not os.path.exists(eval_result_path):
+        os.makedirs(eval_result_path)
+    with open(os.path.join(eval_result_path, 'result.json'), "w") as f:
+        json.dump(evaluation_results, f)
