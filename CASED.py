@@ -15,6 +15,8 @@ from sklearn.model_selection import RandomizedSearchCV
 from librosa.sequence import viterbi_binary
 from WavToFeatures import WavToFeatures
 from Evaluation import Evaluation
+from Visualization import Visualizer
+import public_func as f
 
 
 class CASED:
@@ -35,15 +37,8 @@ class CASED:
         # evaluate accuracy on training data
         self.val_fold_scores_ = []
 
-        self.label_dict = {
-            'Lecturing': 0,
-            'Q/A': 1,
-            'Teacher-led Conversation': 2,
-            'Student Presentation': 3,
-            'Individual Student Work': 4,
-            'Collaborative Student Work': 5,
-            'Other': 6
-        }
+        self.label_dict = f.get_label_dict(target_class_version)
+        self.reverse_label_dict = f.get_reverse_label_dict(target_class_version)
 
     def get_metadict(self, annot, file_name):
         for metadict in annot:
@@ -136,13 +131,16 @@ class CASED:
             with open(os.path.join(cache_path, 'best_estimator.pkl'), "wb") as f:
                 pickle.dump(self.best_model, f)
 
-    def predict_annotation(self, file_name, audio_path, transit_prob=0.05, load_cache=False):
-        """predict the smoothed (onset,offset) sequence for each target class"""
+    def predict_proba(self, file_name, audio_path, load_cache=False):
         assert self.best_model is not None, 'get the best model first!'
-        # transform wav file into feature matrix
         features_matrix = WavToFeatures(file_name, audio_path, cache_path, self.frac_t, self.long_frac_t, self.step_t).transform(load_cache=load_cache)
         features_matrix = self.standard_scaler.fit_transform(features_matrix)
         y_pred_prob = self.best_model.predict_proba(features_matrix)
+
+        return y_pred_prob
+
+    def predict_binary(self, file_name, audio_path, transit_prob=0.05, load_cache=False):
+        y_pred_prob = self.predict_proba(file_name, audio_path, load_cache=load_cache)
 
         prob = np.array(
             [y_pred_prob_label[:, 1] for y_pred_prob_label in y_pred_prob])  # proba matrix [num classes, num samples]
@@ -150,6 +148,14 @@ class CASED:
         num_label = prob.shape[0]
         transition_mtx_full = np.repeat(transition_mtx[np.newaxis, :, :], num_label, axis=0)
         binary_pred = viterbi_binary(prob, transition_mtx_full)
+        
+        return binary_pred
+
+    def predict_annotation(self, file_name, audio_path, transit_prob=0.05, load_cache=False):
+        """predict the smoothed (onset,offset) sequence for each target class"""
+        assert self.best_model is not None, 'get the best model first!'
+
+        binary_pred = self.predict_binary(file_name, audio_path, transit_prob=0.05, load_cache=False)
 
         # Get start time, end time of consecutive 1s for each class
         append1 = np.zeros((binary_pred.shape[0], 1), dtype=int)
@@ -169,6 +175,18 @@ class CASED:
                 {'event_onset': start_t, 'event_offset': end_t, 'event_label': inv_map[detected[0]]})
         return estimated_event_list
 
+    def visualize_pred(self, file_name, audio_path, save_path, annot_path, transit_prob=0.5, load_cache=False):
+        proba_pred = self.predict_proba(file_name, audio_path, load_cache=load_cache)
+        binary_pred = self.predict_binary(file_name, audio_path, transit_prob=transit_prob, load_cache=load_cache)
+
+        with open(annot_path, 'r') as f:
+            annot = json.load(f)
+        metadict = self.get_metadict(annot, file_name)
+        reference_event_list = metadict['tricks']
+        estimated_event_list = self.predict_annotation(file_name, audio_path, transit_prob=transit_prob, load_cache=load_cache)
+        visualizer = Visualizer(self.label_dict, self.reverse_label_dict)
+        visualizer.plot(file_name, audio_path, save_path, reference_event_list, estimated_event_list, proba_pred, binary_pred)
+
 
 if __name__ == '__main__':
     warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -179,6 +197,7 @@ if __name__ == '__main__':
     model_cache_path = 'data/COAS_2/Model'
     audio_test_path = 'data/COAS_2/Audios_test'
     eval_result_path = 'data/COAS_2/Eval_test'
+    plot_path = 'data/COAS_2/Plots'
     cased = CASED(frac_t, long_frac_t, step_t, target_class_version=0)
     cased.load_train_data(annot_path, audio_path, cache_path, load_cache=True, num_folds=5)
     cased.randomized_search_cv(n_iter_search=30, cache_path=model_cache_path, load_cache=True)
@@ -186,31 +205,13 @@ if __name__ == '__main__':
     # evaluate on test audios
     ##################
     # TODOs:
-    # 1. let wavToFeatures support save cache
-    # 2. visualize prediction and evaluation result
-    # 3. sampling strategy
-    # 4. data augmentation
+    # 1. add global feature of max 
+    # 2. visualize prediction and evaluation result, for both train and test, for pred_proba and viterbi
+    # 3. try class weight for RF
+    # 4. sampling strategy and data augmentation
+    # 5. sed_eval agg metrics
+    # 6. remove 'Other' label
 
-
-    with open(annot_path, 'r') as f:
-            annot = json.load(f)
     audiofiles_test = [f for f in os.listdir(audio_test_path) if f.endswith('wav')]
-    evaluation = Evaluation(target_class_version=0)
-    evaluation_results = {}
     for test_audio in audiofiles_test:
-        metadict = cased.get_metadict(annot, test_audio)
-        if metadict is None:
-            print(f"{test_audio} not found in annot")
-            continue
-        else:
-            reference_event_list = metadict['tricks']
-        estimated_event_list = cased.predict_annotation(test_audio, audio_test_path, transit_prob=0.5, load_cache=True)
-        evaluation_result = evaluation.evaluate_single_file(estimated_event_list, reference_event_list)
-        evaluation_results[test_audio] = evaluation_result
-
-    print(evaluation_results)
-
-    if not os.path.exists(eval_result_path):
-        os.makedirs(eval_result_path)
-    with open(os.path.join(eval_result_path, 'result.json'), "w") as f:
-        json.dump(evaluation_results, f)
+        cased.visualize_pred(test_audio, audio_test_path, plot_path, annot_path, transit_prob=0.5, load_cache=True)
