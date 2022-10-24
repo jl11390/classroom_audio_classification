@@ -13,6 +13,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import LeaveOneGroupOut
 from sklearn.model_selection import RandomizedSearchCV
 from librosa.sequence import viterbi_binary
+from WavToFeatures import WavToFeatures
 from Evaluation import Evaluation
 
 
@@ -47,7 +48,7 @@ class CASED:
     def get_metadict(self, annot, file_name):
         for metadict in annot:
             # note: this way to get file name is not ideal
-            file_name_mp4 = metadict['video_url'].split('-')[-1]
+            file_name_mp4 = metadict['video_url'].split('/')[-1]
             file_name_wav = file_name_mp4.replace('.mp4', '.wav')
             if file_name == file_name_wav:
                 return metadict
@@ -86,7 +87,8 @@ class CASED:
         folds_all = np.array(folds_all)
 
         self.features_matrix_all = features_matrix_all
-        # standardization
+        # standardization  
+
         self.features_matrix_all = self.standard_scaler.fit_transform(self.features_matrix_all)
         self.labels_matrix_all = labels_matrix_all
         self.folds_all = folds_all
@@ -171,11 +173,12 @@ class CASED:
 if __name__ == '__main__':
     warnings.simplefilter(action='ignore', category=FutureWarning)
     frac_t, long_frac_t, step_t = 5, 20, 2
-    annot_path = 'data/COAS/Annotation/project-3-at-2022-10-10-17-01-baad4ee5.json'
-    audio_path = 'data/COAS/Audios'
-    cache_path = 'data/COAS/Features'
-    model_cache_path = 'data/COAS/Model'
-    audio_test_path = 'data/COAS/Audios_test'
+    annot_path = 'data/COAS_2/Annotation/project-3-at-2022-10-16-23-25-0c5736a4.json'
+    audio_path = 'data/COAS_2/Audios'
+    cache_path = 'data/COAS_2/Features'
+    model_cache_path = 'data/COAS_2/Model'
+    audio_test_path = 'data/COAS_2/Audios_test'
+    eval_result_path = 'data/COAS_2/Eval_test'
     cased = CASED(frac_t, long_frac_t, step_t, target_class_version=0)
     cased.load_train_data(annot_path, audio_path, cache_path, load_cache=True, num_folds=5)
     cased.randomized_search_cv(n_iter_search=30, cache_path=model_cache_path, load_cache=True)
@@ -186,23 +189,23 @@ if __name__ == '__main__':
     # 1. put wav_transform into audio splitter and use dataloader.load_pred_data(frac_t, long_frac_t, step_t)? so that it can be exactly the same features
     # 2. add a global function to process labels? There are mismatches, upper and lower case issues right now
     # 3. deal with nan in evaluate, maybe put them as 0
-    '''
+
     with open(annot_path, 'r') as f:
             annot = json.load(f)
     audiofiles_test = [f for f in os.listdir(audio_test_path) if f.endswith('wav')]
-    evaluation = Evaluation()
+    evaluation = Evaluation(target_class_version=0)
     evaluation_results = {}
     for test_audio in audiofiles_test:
-        metadict = get_metadict(test_audio, annot)
+        metadict = cased.get_metadict(annot, test_audio)
         if metadict is None:
             print(f"{test_audio} not found in annot")
             continue
         else:
             reference_event_list = metadict['tricks']
-        test_src_path = f"{audio_test_path}/{test_audio}"
-        estimated_event_list = cased.predict_annotation(test_src_path, transit_prob=0.05)
+        estimated_event_list = cased.predict_annotation(test_audio, audio_test_path, transit_prob=0.05)
         evaluation_result = evaluation.evaluate_single_file(estimated_event_list, reference_event_list)
         evaluation_results[test_audio] = evaluation_result
 
     print(evaluation_results)
-    '''
+    with open(f'{eval_result_path}/result.json', "w") as outfile:
+        json.dump(evaluation_results, outfile)

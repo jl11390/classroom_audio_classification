@@ -57,7 +57,7 @@ class WavToFeatures:
             audio_final_features = np.concatenate((audio_feature.features, audio_diff_features))
             features_matrix = np.vstack(
                 [features_matrix, audio_final_features]) if features_matrix is not None else audio_final_features
-        print(f'successfully transformed the wav file into a {features_matrix.shape} matrix')
+        print(f'successfully transformed the wav file {self.file_name} into a {features_matrix.shape} matrix')
         return features_matrix
 
 

@@ -18,9 +18,9 @@ def convert_video_to_audio_moviepy(video_file, data_path, output_path, output_ex
 
 
 if __name__ == "__main__":
-    data_path = 'data/COAS/Videos'
-    output_path = 'data/COAS/Audios'
-    output_test_path = 'data/COAS/Audios_test'
+    data_path = 'data/COAS_2/Videos'
+    output_path = 'data/COAS_2/Audios'
+    output_test_path = 'data/COAS_2/Audios_test'
     if not os.path.exists(output_path):
         os.makedirs(output_path)
     if not os.path.exists(output_test_path):

@@ -1,6 +1,6 @@
 import librosa
 import numpy as np
-
+import public_func as f
 
 class AudioSplitter:
     def __init__(self, src_path, metadata_dict, target_class_version=1):
@@ -17,26 +17,7 @@ class AudioSplitter:
         self.long_datas = None
         self.labels = None
         self.transition_indicator = None
-        if target_class_version == 0:  # full target class
-            self.label_dict = {
-                'Lecturing': 0,
-                'Q/A': 1,
-                'Teacher-led Conversation': 2,
-                'Student Presentation': 3,
-                'Individual Student Work': 4,
-                'Collaborative Student Work': 5,
-                'Other': 6
-            }
-        if target_class_version == 1:  # reduced target class
-            self.label_dict = {
-                'Lecturing': 0,
-                'Q/A': 0,
-                'Teacher-led Conversation': 0,
-                'Student Presentation': 0,
-                'Individual Student Work': 1,
-                'Collaborative Student Work': 2,
-                'Other': 3
-            }
+        self.label_dict = f.get_label_dict(target_class_version)
         self.label_dict = dict((k.lower(), v) for k, v in self.label_dict.items())
         self.labels_length = len(set(self.label_dict.values()))
 
