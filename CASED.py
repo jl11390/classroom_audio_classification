@@ -155,7 +155,7 @@ class CASED:
         """predict the smoothed (onset,offset) sequence for each target class"""
         assert self.best_model is not None, 'get the best model first!'
 
-        binary_pred = self.predict_binary(file_name, audio_path, transit_prob=0.05, load_cache=False)
+        binary_pred = self.predict_binary(file_name, audio_path, transit_prob=transit_prob, load_cache=False)
 
         # Get start time, end time of consecutive 1s for each class
         append1 = np.zeros((binary_pred.shape[0], 1), dtype=int)
