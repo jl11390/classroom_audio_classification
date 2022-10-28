@@ -17,6 +17,8 @@ from WavToFeatures import WavToFeatures
 from Evaluation import Evaluation
 from Visualization import Visualizer
 import public_func as f
+import sed_eval
+import itertools
 
 
 class CASED:
@@ -92,7 +94,7 @@ class CASED:
         print(
             f'proportion of labels in each target class: {np.sum(labels_matrix_all, axis=0) / np.sum(labels_matrix_all)}')
 
-    def randomized_search_cv(self, n_iter_search=10, cache_path='data/COAS/Model', load_cache=False):
+    def randomized_search_cv(self, n_iter_search=10, cache_path='data/COAS_2/Model', load_cache=False):
         """leave one group out cross validation for performance evaluation and model selection"""
         assert self.features_matrix_all is not None, 'load training data first!'
 
@@ -139,7 +141,7 @@ class CASED:
 
         return y_pred_prob
 
-    def predict_binary(self, file_name, audio_path, transit_prob=0.05, load_cache=False):
+    def predict_binary(self, file_name, audio_path, transit_prob=0.5, load_cache=False):
         y_pred_prob = self.predict_proba(file_name, audio_path, load_cache=load_cache)
 
         prob = np.array(
@@ -151,11 +153,11 @@ class CASED:
         
         return binary_pred
 
-    def predict_annotation(self, file_name, audio_path, transit_prob=0.05, load_cache=False):
+    def predict_annotation(self, file_name, audio_path, transit_prob=0.5, load_cache=False):
         """predict the smoothed (onset,offset) sequence for each target class"""
         assert self.best_model is not None, 'get the best model first!'
 
-        binary_pred = self.predict_binary(file_name, audio_path, transit_prob=0.05, load_cache=False)
+        binary_pred = self.predict_binary(file_name, audio_path, transit_prob=transit_prob, load_cache=load_cache)
 
         # Get start time, end time of consecutive 1s for each class
         append1 = np.zeros((binary_pred.shape[0], 1), dtype=int)
@@ -167,13 +169,69 @@ class CASED:
 
         # Return (onset,offset) sequence for all target classes
         estimated_event_list = []
-        inv_map = {v: k for k, v in self.label_dict.items()}
+        inv_map = self.reverse_label_dict
         for detected in start_stop:
             start_t = detected[1] * self.step_t
             end_t = detected[2] * self.step_t + self.frac_t
             estimated_event_list.append(
                 {'event_onset': start_t, 'event_offset': end_t, 'event_label': inv_map[detected[0]]})
         return estimated_event_list
+
+    def evaluate_all(self, annot_path, audio_test_path, eval_result_path, transit_prob=0.5, load_cache=True):
+        
+        with open(annot_path, 'r') as f:
+            annot = json.load(f)
+        audiofiles_test = [f for f in os.listdir(audio_test_path) if f.endswith('wav')]
+
+        # Get used event labels
+        reference_event_list_all = []
+        estimated_event_list_all = []
+        for file in audiofiles_test:
+            metadict = self.get_metadict(annot, file)
+            if metadict is None:
+                print(f"{test_audio} not found in annot")
+                continue
+            else:
+                reference_event_list = metadict['tricks']
+            estimated_event_list = self.predict_annotation(file, audio_test_path, transit_prob=transit_prob, load_cache=load_cache)
+            for est_event_dict in estimated_event_list:
+                est_event_dict['event_label'] = self.label_dict[est_event_dict['event_label']]
+            for event_dict in reference_event_list:
+                event_dict['event_onset'] = event_dict['start']
+                event_dict['event_offset'] = event_dict['end']
+                event_dict['event_label'] = self.label_dict[event_dict['labels'][0]]
+                del event_dict['start']
+                del event_dict['end']
+                del event_dict['labels']
+            reference_event_list_all.append(reference_event_list)
+            estimated_event_list_all.append(estimated_event_list)
+        
+        reference_event_list_all = list(itertools.chain.from_iterable(reference_event_list_all))
+        estimated_event_list_all = list(itertools.chain.from_iterable(estimated_event_list_all))
+        event_labels = sed_eval.util.event_list.unique_event_labels(reference_event_list_all)
+
+        # Create metrics classes, define parameters
+        segment_based_metrics = sed_eval.sound_event.SegmentBasedMetrics(event_label_list=event_labels,time_resolution=1.0)
+        segment_based_metrics.evaluate(reference_event_list=reference_event_list_all,estimated_event_list=estimated_event_list_all)
+        # Get all metrices
+        all_class_wise_metrics = segment_based_metrics.results_class_wise_metrics()
+        # Filter metrices and change output format
+        eval_result = {}
+        for label_class, result in list(all_class_wise_metrics.items()):
+            label = self.reverse_label_dict[label_class]
+            eval_result[label] = {999: '999'}
+            eval_result[label]['f_measure'] = result['f_measure']['f_measure']
+            eval_result[label]['precision'] = result['f_measure']['precision']
+            eval_result[label]['recall'] = result['f_measure']['recall']
+            eval_result[label]['error_rate'] = result['error_rate']['error_rate']
+            del eval_result[label][999]
+
+        # Save result to eval_result_path
+        if not os.path.exists(eval_result_path):
+            os.makedirs(eval_result_path)
+        path = os.path.join(eval_result_path, 'result_all.json')
+        with open(path, "w") as outfile:
+            json.dump(eval_result, outfile)
 
     def visualize_pred(self, file_name, audio_path, save_path, annot_path, transit_prob=0.5, load_cache=False):
         proba_pred = self.predict_proba(file_name, audio_path, load_cache=load_cache)
@@ -201,6 +259,7 @@ if __name__ == '__main__':
     cased = CASED(frac_t, long_frac_t, step_t, target_class_version=0)
     cased.load_train_data(annot_path, audio_path, cache_path, load_cache=True, num_folds=5)
     cased.randomized_search_cv(n_iter_search=30, cache_path=model_cache_path, load_cache=True)
+    cased.evaluate_all(annot_path, audio_test_path, eval_result_path, transit_prob=0.5, load_cache=True)
 
     # evaluate on test audios
     ##################
