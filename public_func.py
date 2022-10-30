@@ -1,5 +1,10 @@
+import librosa
+import numpy as np
+
+
 def get_label_dict(target_class_version):
     assert target_class_version in [0, 1], "target class is invalid"
+    label_dict = None
     if target_class_version == 0:  # full target class
         label_dict = {
             'Lecturing': 0,
@@ -8,7 +13,6 @@ def get_label_dict(target_class_version):
             'Student Presentation': 3,
             'Individual Student Work': 4,
             'Collaborative Student Work': 5,
-            'Other': 6
         }
     if target_class_version == 1:  # reduced target class
         label_dict = {
@@ -18,12 +22,11 @@ def get_label_dict(target_class_version):
             'Student Presentation': 0,
             'Individual Student Work': 1,
             'Collaborative Student Work': 2,
-            'Other': 3
         }
-    
+
     label_dict_lower = {}
     label_dict_upper = {}
-    
+
     for target, target_class in label_dict.items():
         if target != target.lower():
             label_dict_lower[target.lower()] = target_class
@@ -34,8 +37,10 @@ def get_label_dict(target_class_version):
 
     return label_dict
 
+
 def get_reverse_label_dict(target_class_version):
     assert target_class_version in [0, 1], "target class is invalid"
+    label_dict = None
     if target_class_version == 0:  # full target class
         label_dict = {
             'Lecturing': 0,
@@ -44,7 +49,6 @@ def get_reverse_label_dict(target_class_version):
             'Student Presentation': 3,
             'Individual Student Work': 4,
             'Collaborative Student Work': 5,
-            'Other': 6
         }
     if target_class_version == 1:  # reduced target class
         label_dict = {
@@ -54,9 +58,8 @@ def get_reverse_label_dict(target_class_version):
             'Student Presentation': 0,
             'Individual Student Work': 1,
             'Collaborative Student Work': 2,
-            'Other': 3
         }
-    
+
     keys = list(label_dict.keys())
     values = list(label_dict.values())
     reverse_label_dict = {}
@@ -67,6 +70,16 @@ def get_reverse_label_dict(target_class_version):
             reverse_label_dict[value] = key
 
     return reverse_label_dict
+
+
+# extract the local rms max, which will be used as a feature
+def get_local_rms_max(y):
+    # window and hop here is for calculating rms in a splitted audio
+    X = librosa.stft(y)
+    Y = librosa.amplitude_to_db(np.abs(X), ref=np.max)
+    rms = librosa.feature.rms(S=Y)
+    return rms.max()
+
 
 if __name__ == "__main__":
     label_dict = get_label_dict(0)

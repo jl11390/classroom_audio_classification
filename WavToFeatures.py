@@ -1,8 +1,9 @@
 import os
 import librosa
-import numpy as np
-from FeatureExtract import AudioFeature
 import pickle
+import numpy as np
+from public_func import get_local_rms_max
+from FeatureExtract import AudioFeature
 
 
 class WavToFeatures:
@@ -31,7 +32,7 @@ class WavToFeatures:
             with open(self.feature_path, 'rb') as f:
                 features = pickle.load(f)
             features_matrix = features
-            print(f'features and labels load successfully for {self.file_name}')
+            print(f'features and labels load successfully for evaluation file {self.file_name}')
         else:
             y, sr = librosa.load(self.file_path, sr=22050, mono=True)
             num_samples = len(y)  # total number of samples
@@ -62,8 +63,8 @@ class WavToFeatures:
 
             for bundle in zip(datas, long_datas):
                 data, long_data = bundle
-                audio_feature = AudioFeature(data, label=None)
-                audio_long_feature = AudioFeature(long_data, label=None)
+                audio_feature = AudioFeature(data)
+                audio_long_feature = AudioFeature(long_data)
                 audio_feature.extract_features(['mfcc', 'spectral', 'rms'])
                 audio_long_feature.extract_features(['mfcc', 'spectral', 'rms'])
                 assert audio_feature.features.shape == audio_long_feature.features.shape
@@ -71,12 +72,15 @@ class WavToFeatures:
                 audio_final_features = np.concatenate((audio_feature.features, audio_diff_features))
                 features_matrix = np.vstack(
                     [features_matrix, audio_final_features]) if features_matrix is not None else audio_final_features
+            local_rms_max = get_local_rms_max(y)
+            local_rms_max_feature = np.full((n_frames, 1), local_rms_max)
+            features_matrix = np.hstack([features_matrix, local_rms_max_feature])
             self.save_pickle(features_matrix, self.feature_path)
             print(f'successfully transformed the wav file {self.file_name} into a {features_matrix.shape} matrix')
         return features_matrix
 
 
 if __name__ == "__main__":
-    file_name, audio_path, frac_t, long_frac_t, step_t = 'Games_4.wav', 'data/COAS/Audios_test', 5, 20, 2
-    wav_to_features = WavToFeatures(file_name, audio_path, frac_t, long_frac_t, step_t).transform()
+    file_name, audio_path, cache_path, frac_t, long_frac_t, step_t = '48ad890d-ActiveLearning_6.wav', 'data/COAS_2/Audios', 'data/COAS_2/Features_test', 5, 20, 2
+    wav_to_features = WavToFeatures(file_name, audio_path, cache_path, frac_t, long_frac_t, step_t).transform(load_cache=False)
     print(wav_to_features.shape)

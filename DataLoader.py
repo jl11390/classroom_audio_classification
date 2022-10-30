@@ -1,6 +1,7 @@
 import pickle
 import os
 import numpy as np
+from public_func import get_local_rms_max
 from FeatureExtract import AudioFeature
 from AudioSplitter import AudioSplitter
 
@@ -23,8 +24,6 @@ class DataLoader:
 
         self.target_class_version = target_class_version
 
-        self.label_dict = None
-
     def save_pickle(self, features_labels, save_path):
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
@@ -39,17 +38,14 @@ class DataLoader:
             print(f'features and labels load successfully for {self.file_name}')
         else:
             features_matrix = None
-            labels_matrix = None
             audiosplitter = AudioSplitter(self.file_path, self.metadict, target_class_version=self.target_class_version)
-            self.label_dict = audiosplitter.label_dict
             audiosplitter.split_audio(self.frac_t, self.long_frac_t, self.step_t, threshold=0.3)
             audiosplitter.remove_noisy_data(remove_no_label_data=True, remove_transition=False)
-            datas, long_datas, labels = audiosplitter.datas, audiosplitter.long_datas, audiosplitter.labels
-            for bundle in zip(datas, long_datas, labels):
-                data, long_data, label = bundle
-                assert np.sum(label) > 0, 'wrong'
-                audio_feature = AudioFeature(data, label)
-                audio_long_feature = AudioFeature(long_data, label)
+            datas, long_datas, labels_matrix = audiosplitter.datas, audiosplitter.long_datas, audiosplitter.labels
+            for bundle in zip(datas, long_datas):
+                data, long_data = bundle
+                audio_feature = AudioFeature(data)
+                audio_long_feature = AudioFeature(long_data)
                 audio_feature.extract_features(['mfcc', 'spectral', 'rms'])
                 audio_long_feature.extract_features(['mfcc', 'spectral', 'rms'])
                 assert audio_feature.features.shape == audio_long_feature.features.shape
@@ -57,39 +53,68 @@ class DataLoader:
                 audio_final_features = np.concatenate((audio_feature.features, audio_diff_features))
                 features_matrix = np.vstack(
                     [features_matrix, audio_final_features]) if features_matrix is not None else audio_final_features
-                labels_matrix = np.vstack(
-                    [labels_matrix, audio_feature.label]) if labels_matrix is not None else audio_feature.label
+            local_rms_max = get_local_rms_max(audiosplitter.y)
+            local_rms_max_feature = np.full((labels_matrix.shape[0],1), local_rms_max)
+            features_matrix = np.hstack([features_matrix, local_rms_max_feature])
             self.save_pickle([features_matrix, labels_matrix], self.feature_path)
             print(f'features and labels extracted and cached successfully from {self.file_name}')
         return features_matrix, labels_matrix
 
 
 if __name__ == "__main__":
-    file_name, audio_path, cache_path, frac_t, long_frac_t, step_t = 'Games_1.wav', 'data/COAS/Audios', 'data/COAS/Features', 5, 20, 2
+    file_name, audio_path, cache_path, frac_t, long_frac_t, step_t = '48ad890d-ActiveLearning_6.wav', 'data/COAS_2/Audios', 'data/COAS_2/Features', 5, 20, 2
     metadict = {
-        "video_url": "/data/upload/3/719b3708-Games_1.mp4",
-        "id": 5,
+        "video_url": "/data/upload/3/48ad890d-ActiveLearning_6.mp4",
+        "id": 137,
         "tricks": [
             {
-                "start": 1.0958367346938775,
-                "end": 14.245877551020408,
+                "start": 0,
+                "end": 135.59653630013878,
                 "labels": [
                     "Other"
                 ]
             },
             {
-                "start": 13.150040816326529,
-                "end": 321.8107210884354,
+                "start": 135.08096011648806,
+                "end": 149.2593051668828,
+                "labels": [
+                    "Lecturing"
+                ]
+            },
+            {
+                "start": 149.00151707505745,
+                "end": 158.7974645644211,
+                "labels": [
+                    "Individual Student Work"
+                ]
+            },
+            {
+                "start": 158.53967647259574,
+                "end": 224.27563988806222,
+                "labels": [
+                    "Lecturing"
+                ]
+            },
+            {
+                "start": 223.50227561258617,
+                "end": 275.57547016130866,
                 "labels": [
                     "Q/A"
+                ]
+            },
+            {
+                "start": 275.57547016130866,
+                "end": 307.79898163947854,
+                "labels": [
+                    "Other"
                 ]
             }
         ],
         "annotator": 1,
-        "annotation_id": 4,
-        "created_at": "2022-10-10T13:41:05.808485Z",
-        "updated_at": "2022-10-10T13:41:05.808545Z",
-        "lead_time": 144.207
+        "annotation_id": 133,
+        "created_at": "2022-10-16T21:54:07.079646Z",
+        "updated_at": "2022-10-16T21:54:07.079683Z",
+        "lead_time": 174.194
     }
 
     dataloader = DataLoader(file_name, audio_path, cache_path, metadict, frac_t, long_frac_t, step_t)

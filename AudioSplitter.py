@@ -2,8 +2,9 @@ import librosa
 import numpy as np
 import public_func as f
 
+
 class AudioSplitter:
-    def __init__(self, src_path, metadata_dict, target_class_version=1):
+    def __init__(self, src_path, metadata_dict, target_class_version=0):
         """
         src_path: path of audio file
         metadata_dict: annotation dictionary
@@ -12,8 +13,8 @@ class AudioSplitter:
         self.src_path = src_path
         self.metadata_dict = metadata_dict
         self.y, self.sr = librosa.load(src_path, sr=22050, mono=True)
-        self.datas = None
         self.long_y = None
+        self.datas = None
         self.long_datas = None
         self.labels = None
         self.transition_indicator = None
@@ -75,6 +76,8 @@ class AudioSplitter:
             start_t = annot_result[i]['start']
             end_t = annot_result[i]['end']
             labels = annot_result[i]['labels']
+            if labels[0].lower() == 'other':  # exclude 'other' from our data samples
+                continue
             overlap = 0
             if end_t >= left_t >= start_t:
                 if right_t <= end_t:
@@ -117,49 +120,64 @@ class AudioSplitter:
 
 if __name__ == "__main__":
     metadata_dict = {
-        "video_url": "/data/upload/3/b3b9ac82-Technology_1_008.mp4",
-        "id": 59,
+        "video_url": "/data/upload/3/48ad890d-ActiveLearning_6.mp4",
+        "id": 137,
         "tricks": [
             {
-                "start": 71.5442350718065,
-                "end": 90.58838397581255,
+                "start": 0,
+                "end": 135.59653630013878,
                 "labels": [
-                    "Collaborative Student Work"
+                    "Other"
                 ]
             },
             {
-                "start": 89.55897052154195,
-                "end": 267.64749811035523,
+                "start": 135.08096011648806,
+                "end": 149.2593051668828,
                 "labels": [
                     "Lecturing"
                 ]
             },
             {
-                "start": 267.13279138321997,
-                "end": 346.39762736205597,
+                "start": 149.00151707505745,
+                "end": 158.7974645644211,
+                "labels": [
+                    "Individual Student Work"
+                ]
+            },
+            {
+                "start": 158.53967647259574,
+                "end": 224.27563988806222,
+                "labels": [
+                    "Lecturing"
+                ]
+            },
+            {
+                "start": 223.50227561258617,
+                "end": 275.57547016130866,
                 "labels": [
                     "Q/A"
                 ]
             },
             {
-                "start": 344.85350718065007,
-                "end": 451.3977996976568,
+                "start": 275.57547016130866,
+                "end": 307.79898163947854,
                 "labels": [
-                    "Lecturing"
+                    "Other"
                 ]
             }
         ],
         "annotator": 1,
-        "annotation_id": 55,
-        "created_at": "2022-10-10T16:49:13.958516Z",
-        "updated_at": "2022-10-10T16:49:13.958577Z",
-        "lead_time": 155.885
+        "annotation_id": 133,
+        "created_at": "2022-10-16T21:54:07.079646Z",
+        "updated_at": "2022-10-16T21:54:07.079683Z",
+        "lead_time": 174.194
     }
 
     frac_t, long_frac_t, step_t = 5, 20, 2
-    src_path = 'data/COAS/Audios/Technology_1_008.wav'
+    src_path = 'data/COAS_2/Audios/48ad890d-ActiveLearning_6.wav'
     audiosplitter = AudioSplitter(src_path, metadata_dict, target_class_version=0)
     audiosplitter.split_audio(frac_t, long_frac_t, step_t, threshold=0.3)
-    audiosplitter.remove_noisy_data(remove_no_label_data=True, remove_transition=True)
+    audiosplitter.remove_noisy_data(remove_no_label_data=True, remove_transition=False)
     print(audiosplitter.datas.shape)
     print(audiosplitter.long_datas.shape)
+    print(audiosplitter.labels.shape)
