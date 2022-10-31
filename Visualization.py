@@ -59,19 +59,19 @@ class Visualizer:
 
         self._legend_without_duplicate_labels(ax)
 
-    def _prob_hm(self, proba_pred):
-        prob = np.array([y_pred_prob_label[:, 1] for y_pred_prob_label in proba_pred])
-        sns.heatmap(prob, yticklabels=[self.reverse_label_dict[i] for i in range(len(prob))], cbar=False,
-                    ax=self.axes[1])
-
     def _binary_hm(self, binary_pred):
         sns.heatmap(binary_pred, yticklabels=[self.reverse_label_dict[i] for i in range(len(binary_pred))], cbar=False,
+                    ax=self.axes[1])
+
+    def _prob_hm(self, proba_pred):
+        prob = np.array([y_pred_prob_label[:, 1] for y_pred_prob_label in proba_pred])
+        sns.heatmap(prob, yticklabels=[self.reverse_label_dict[i] for i in range(len(prob))], cbar=True, vmin=0, vmax=1,
                     ax=self.axes[2])
 
     def plot(self, file_name, audio_path, save_path, reference_dict, estimated_dict, proba_pred, binary_pred):
         self._wav_annot(file_name, audio_path, reference_dict, estimated_dict)
-        self._prob_hm(proba_pred)
         self._binary_hm(binary_pred)
+        self._prob_hm(proba_pred)
         self._save_plot(save_path, file_name)
 
 

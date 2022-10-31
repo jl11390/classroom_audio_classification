@@ -161,23 +161,23 @@ class CASED:
 
         return y_pred_prob
 
-    def predict_binary(self, file_name, audio_path, cache_test_path, transit_prob=0.5, load_cache=False):
+    def predict_binary(self, file_name, audio_path, cache_test_path, transit_prob_01=0.5, trans_prob_10 = 0.5, load_cache=False):
         y_pred_prob = self.predict_proba(file_name, audio_path, cache_test_path, load_cache=load_cache)
 
         prob = np.array(
             [y_pred_prob_label[:, 1] for y_pred_prob_label in y_pred_prob])  # proba matrix [num classes, num samples]
-        transition_mtx = np.array([[1 - transit_prob, transit_prob], [transit_prob, 1 - transit_prob]])
+        transition_mtx = np.array([[1 - transit_prob_01, transit_prob_01], [trans_prob_10, 1 - trans_prob_10]])
         num_label = prob.shape[0]
         transition_mtx_full = np.repeat(transition_mtx[np.newaxis, :, :], num_label, axis=0)
         binary_pred = viterbi_binary(prob, transition_mtx_full)
 
         return binary_pred
 
-    def predict_annotation(self, file_name, audio_path, cache_test_path, transit_prob=0.5, load_cache=False):
+    def predict_annotation(self, file_name, audio_path, cache_test_path, transit_prob_01=0.5, trans_prob_10 = 0.5, load_cache=False):
         """predict the smoothed (onset,offset) sequence for each target class"""
         assert self.best_model is not None, 'get the best model first!'
 
-        binary_pred = self.predict_binary(file_name, audio_path, cache_test_path, transit_prob=transit_prob,
+        binary_pred = self.predict_binary(file_name, audio_path, cache_test_path, transit_prob_01=transit_prob_01, trans_prob_10=trans_prob_10,
                                           load_cache=load_cache)
 
         # Get start time, end time of consecutive 1s for each class
@@ -198,8 +198,7 @@ class CASED:
                 {'event_onset': start_t, 'event_offset': end_t, 'event_label': inv_map[detected[0]]})
         return estimated_event_list
 
-    def evaluate_all(self, annot_path, audio_test_path, cache_test_path, eval_result_path, transit_prob=0.5,
-                     load_cache=True):
+    def evaluate_all(self, annot_path, audio_test_path, cache_test_path, eval_result_path, transit_prob_01=0.5, trans_prob_10 = 0.5, load_cache=True):
 
         with open(annot_path, 'r') as f:
             annot = json.load(f)
@@ -216,7 +215,7 @@ class CASED:
             else:
                 reference_event_list = metadict['tricks']
             estimated_event_list = self.predict_annotation(file, audio_test_path, cache_test_path,
-                                                           transit_prob=transit_prob,
+                                                           transit_prob_01=transit_prob_01, trans_prob_10 = trans_prob_10,
                                                            load_cache=load_cache)
             for est_event_dict in estimated_event_list:
                 est_event_dict['event_label'] = self.label_dict[est_event_dict['event_label']]
@@ -260,10 +259,10 @@ class CASED:
         with open(path, "w") as outfile:
             json.dump(eval_result, outfile)
 
-    def visualize_pred(self, file_name, audio_path, cache_test_path, save_path, annot_path, transit_prob=0.5,
+    def visualize_pred(self, file_name, audio_path, cache_test_path, save_path, annot_path, transit_prob_01=0.5, trans_prob_10 = 0.5,
                        load_cache=False):
         proba_pred = self.predict_proba(file_name, audio_path, cache_test_path, load_cache=load_cache)
-        binary_pred = self.predict_binary(file_name, audio_path, cache_test_path, transit_prob=transit_prob,
+        binary_pred = self.predict_binary(file_name, audio_path, cache_test_path, transit_prob_01=transit_prob_01, trans_prob_10=trans_prob_10,
                                           load_cache=load_cache)
 
         with open(annot_path, 'r') as f:
@@ -271,7 +270,7 @@ class CASED:
         metadict = self.get_metadict(annot, file_name)
         reference_event_list = metadict['tricks']
         estimated_event_list = self.predict_annotation(file_name, audio_path, cache_test_path,
-                                                       transit_prob=transit_prob,
+                                                       transit_prob_01=transit_prob_01, trans_prob_10=trans_prob_10,
                                                        load_cache=load_cache)
         visualizer = Visualizer(self.label_dict, self.reverse_label_dict)
         visualizer.plot(file_name, audio_path, save_path, reference_event_list, estimated_event_list, proba_pred,
@@ -282,6 +281,7 @@ if __name__ == '__main__':
     warnings.simplefilter(action='ignore', category=FutureWarning)
     frac_t, long_frac_t, step_t = 5, 20, 2
     annot_path = 'data/COAS_2/Annotation/project-3-at-2022-10-16-23-25-0c5736a4.json'
+
     audio_path = 'data/COAS_2/Audios'
     cache_path = 'data/COAS_2/Features'
     cache_test_path = 'data/COAS_2/Features_test'
@@ -292,10 +292,8 @@ if __name__ == '__main__':
     cased = CASED(frac_t, long_frac_t, step_t, target_class_version=0)
     cased.load_train_data(annot_path, audio_path, cache_path, load_cache=True, num_folds=5)
     cased.randomized_search_cv(n_iter_search=20, cache_path=model_cache_path, load_cache=True)
-    cased.evaluate_all(annot_path, audio_test_path, cache_test_path, eval_result_path, transit_prob=0.5,
-                       load_cache=True)
+    cased.evaluate_all(annot_path, audio_test_path, cache_test_path, eval_result_path,  transit_prob_01=0.5, trans_prob_10 = 0.3, load_cache=True)
 
     audiofiles_test = [f for f in os.listdir(audio_test_path) if f.endswith('wav')]
     for test_audio in audiofiles_test:
-        cased.visualize_pred(test_audio, audio_test_path, cache_test_path, plot_path, annot_path, transit_prob=0.5,
-                             load_cache=True)
+        cased.visualize_pred(test_audio, audio_test_path, cache_test_path, plot_path, annot_path, transit_prob_01=0.5, trans_prob_10 = 0.3, load_cache=True)
