@@ -130,14 +130,13 @@ class CASED:
 
     def randomized_search_cv(self, n_iter_search=10, cache_path='data/COAS_2/Model', load_cache=False):
         """leave one group out cross validation for performance evaluation and model selection"""
-        assert self.features_matrix_all is not None, 'load training data first!'
-
         model_path = os.path.join(cache_path, 'best_estimator.pkl')
         if load_cache and os.path.exists(model_path):
             with open(model_path, 'rb') as f:
                 self.best_model = pickle.load(f)
             print(f'model loaded from cache path {model_path}')
         else:
+            assert self.features_matrix_all is not None, 'load training data first!'
             clf = RandomForestClassifier()
             class_weight_lst = self._customize_class_weights_candidates()
             param_dist = {"n_estimators": [200, 300],
@@ -330,8 +329,8 @@ if __name__ == '__main__':
     cased.load_train_data(annot_path, audio_path, cache_path, cache_aug_path, aug_dict_path, audio_aug_path,
                           load_cache=True, num_folds=5)
     cased.randomized_search_cv(n_iter_search=10, cache_path=model_cache_path, load_cache=True)
-    cased.evaluate_all(annot_path, audio_test_path, cache_test_path, eval_result_path, transit_prob_01=0.5,
-                       trans_prob_10=0.3, load_cache=True)
+    # cased.evaluate_all(annot_path, audio_test_path, cache_test_path, eval_result_path, transit_prob_01=0.5,
+    #                    trans_prob_10=0.3, load_cache=False)
 
     audiofiles_test = [f for f in os.listdir(audio_test_path) if f.endswith('wav')]
     for test_audio in audiofiles_test:
