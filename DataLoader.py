@@ -8,7 +8,7 @@ from AudioSplitter import AudioSplitter
 
 # data loader for training
 class DataLoader:
-    def __init__(self, file_name, audio_path, cache_path, metadict, frac_t, long_frac_t, step_t,
+    def __init__(self, file_name, audio_path, cache_path, metadict, frac_t, long_frac_t, long_long_frac_t, step_t,
                  target_class_version=0):
         self.file_name = file_name  # wav file name
         self.audio_path = audio_path  # path that contains the wav files
@@ -17,6 +17,7 @@ class DataLoader:
 
         self.frac_t = frac_t
         self.long_frac_t = long_frac_t
+        self.long_long_frac_t = long_long_frac_t
         self.step_t = step_t
 
         self.feature_path = os.path.join(self.cache_path, self.file_name.replace('.wav', '.pkl'))
@@ -39,22 +40,25 @@ class DataLoader:
         else:
             features_matrix = None
             audiosplitter = AudioSplitter(self.file_path, self.metadict, target_class_version=self.target_class_version)
-            audiosplitter.split_audio(self.frac_t, self.long_frac_t, self.step_t, threshold=0.3)
+            audiosplitter.split_audio(self.frac_t, self.long_frac_t, self.long_long_frac_t, self.step_t, threshold=0.3)
             audiosplitter.remove_noisy_data(remove_no_label_data=True, remove_transition=False)
-            datas, long_datas, labels_matrix = audiosplitter.datas, audiosplitter.long_datas, audiosplitter.labels
-            for bundle in zip(datas, long_datas):
-                data, long_data = bundle
+            datas, long_datas, long_long_datas, labels_matrix = audiosplitter.datas, audiosplitter.long_datas, audiosplitter.long_long_datas, audiosplitter.labels
+            for bundle in zip(datas, long_datas, long_long_datas):
+                data, long_data, long_long_data = bundle
                 audio_feature = AudioFeature(data)
                 audio_long_feature = AudioFeature(long_data)
+                audio_long_long_feature = AudioFeature(long_long_data)
                 audio_feature.extract_features(['mfcc', 'spectral', 'rms'])
                 audio_long_feature.extract_features(['mfcc', 'spectral', 'rms'])
-                assert audio_feature.features.shape == audio_long_feature.features.shape
-                audio_diff_features = audio_long_feature.features - audio_feature.features
-                audio_final_features = np.concatenate((audio_feature.features, audio_diff_features))
+                audio_long_long_feature.extract_features(['mfcc', 'spectral', 'rms'])
+                assert audio_feature.features.shape == audio_long_feature.features.shape and audio_long_feature.features.shape == audio_long_long_feature.features.shape
+                audio_diff_features_1 = audio_long_feature.features - audio_feature.features
+                audio_diff_features_2 = audio_long_long_feature.features - audio_feature.features
+                audio_final_features = np.concatenate((audio_feature.features, audio_diff_features_1, audio_diff_features_2))
                 features_matrix = np.vstack(
                     [features_matrix, audio_final_features]) if features_matrix is not None else audio_final_features
             local_rms_max = get_local_rms_max(audiosplitter.y)
-            local_rms_max_feature = np.full((labels_matrix.shape[0],1), local_rms_max)
+            local_rms_max_feature = np.full((labels_matrix.shape[0], 1), local_rms_max)
             features_matrix = np.hstack([features_matrix, local_rms_max_feature])
             self.save_pickle([features_matrix, labels_matrix], self.feature_path)
             print(f'features and labels extracted and cached successfully from {self.file_name}')
@@ -62,7 +66,7 @@ class DataLoader:
 
 
 if __name__ == "__main__":
-    file_name, audio_path, cache_path, frac_t, long_frac_t, step_t = '48ad890d-ActiveLearning_6.wav', 'data/COAS_2/Audios', 'data/COAS_2/Features', 5, 20, 2
+    file_name, audio_path, cache_path, frac_t, long_frac_t, long_long_frac_t, step_t = '48ad890d-ActiveLearning_6.wav', 'data/COAS_2/Audios', 'data/COAS_2/Features', 5, 20, 60, 2
     metadict = {
         "video_url": "/data/upload/3/48ad890d-ActiveLearning_6.mp4",
         "id": 137,
@@ -117,7 +121,7 @@ if __name__ == "__main__":
         "lead_time": 174.194
     }
 
-    dataloader = DataLoader(file_name, audio_path, cache_path, metadict, frac_t, long_frac_t, step_t)
+    dataloader = DataLoader(file_name, audio_path, cache_path, metadict, frac_t, long_frac_t, long_long_frac_t, step_t)
     features_matrix, labels_matrix = dataloader.load_data(load_cache=False)
     print(features_matrix.shape, labels_matrix.shape)
     print(np.sum(labels_matrix, axis=0) / np.sum(labels_matrix))

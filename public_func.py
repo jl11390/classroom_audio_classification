@@ -81,6 +81,23 @@ def get_local_rms_max(y):
     return rms.max()
 
 
+# get features names for feature importance visualization
+def get_features_names():
+    label = []
+    mfcc_mean = ['mfcc_mean_' + str(i) for i in range(20)]
+    mfcc_variance = ['mfcc_variance_' + str(i) for i in range(20)]
+    spec_con_mean = ['spec_con_mean_' + str(i) for i in range(7)]
+    spec_con_variance = ['spec_con_variance_' + str(i) for i in range(7)]
+    rms_mean = ['rms_mean']
+    rms_variance = ['rms_variance']
+    [label.extend(i) for i in [mfcc_mean, mfcc_variance, spec_con_mean, spec_con_variance, rms_mean, rms_variance]]
+    original_features = label.copy()
+    [label.append(i + '_diff_1') for i in original_features]
+    [label.append(i + '_diff_2') for i in original_features]
+    label.append('rms_local_max')
+    return label
+
+
 if __name__ == "__main__":
     label_dict = get_label_dict(0)
     print(label_dict)

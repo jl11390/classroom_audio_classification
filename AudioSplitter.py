@@ -1,6 +1,6 @@
 import librosa
 import numpy as np
-import public_func as f
+import public_func as F
 
 
 class AudioSplitter:
@@ -14,15 +14,17 @@ class AudioSplitter:
         self.metadata_dict = metadata_dict
         self.y, self.sr = librosa.load(src_path, sr=22050, mono=True)
         self.long_y = None
+        self.long_long_y = None
         self.datas = None
         self.long_datas = None
+        self.long_long_datas = None
         self.labels = None
         self.transition_indicator = None
-        self.label_dict = f.get_label_dict(target_class_version)
+        self.label_dict = F.get_label_dict(target_class_version)
         self.label_dict = dict((k.lower(), v) for k, v in self.label_dict.items())
         self.labels_length = len(set(self.label_dict.values()))
 
-    def split_audio(self, frac_t, long_frac_t, step_t, threshold=0.3):
+    def split_audio(self, frac_t, long_frac_t, long_long_frac_t, step_t, threshold=0.3):
         """
         frac_t: frame length in seconds
         step_t: hop length in seconds
@@ -35,15 +37,23 @@ class AudioSplitter:
         n_frames = ((audio_length - frac_t) // step_t) + 1  # total number of frames that could be extracted
         n_frames = int(n_frames)
 
-        # To get "multi-scaling"
-        long_audio_length = (n_frames - 1) * step_t + long_frac_t
-        long_num_samples = int(np.ceil(long_audio_length * self.sr))
-        num_paddings = long_num_samples - num_samples
-        long_num_samples_frame = long_frac_t * self.sr
-        self.long_y = np.pad(self.y, (0, num_paddings), 'mean')
+        # To get long "multi-scaling"
+        long_audio_length_1 = (n_frames - 1) * step_t + long_frac_t
+        long_num_samples_1 = int(np.ceil(long_audio_length_1 * self.sr))
+        num_paddings_1 = long_num_samples_1 - num_samples
+        long_num_samples_frame_1 = long_frac_t * self.sr
+        self.long_y = np.pad(self.y, (0, num_paddings_1), 'mean')
+
+        # To get long-long"multi-scaling"
+        long_audio_length_2 = (n_frames - 1) * step_t + long_long_frac_t
+        long_num_samples_2 = int(np.ceil(long_audio_length_2 * self.sr))
+        num_paddings_2 = long_num_samples_2 - num_samples
+        long_num_samples_frame_2 = long_long_frac_t * self.sr
+        self.long_long_y = np.pad(self.y, (0, num_paddings_2), 'mean')
 
         self.datas = np.zeros((n_frames, num_samples_frame))  # contains the frames extracted from audio
-        self.long_datas = np.zeros((n_frames, long_num_samples_frame))
+        self.long_datas = np.zeros((n_frames, long_num_samples_frame_1))
+        self.long_long_datas = np.zeros((n_frames, long_num_samples_frame_2))
         self.labels = np.zeros((n_frames, self.labels_length))  # contains the multi-label
         self.transition_indicator = np.zeros(n_frames)
 
@@ -51,8 +61,10 @@ class AudioSplitter:
             left_t = i * step_t
             right_t = i * step_t + frac_t
             long_right_t = i * step_t + long_frac_t
+            long_long_right_t = i * step_t + long_long_frac_t
             self.datas[i] = self.y[left_t * self.sr:right_t * self.sr]
             self.long_datas[i] = self.long_y[left_t * self.sr:long_right_t * self.sr]
+            self.long_long_datas[i] = self.long_long_y[left_t * self.sr:long_long_right_t * self.sr]
             label_arr, transition = self._get_label(left_t, right_t, threshold)
             self.labels[i] = label_arr
             self.transition_indicator[i] = int(transition)
@@ -114,6 +126,7 @@ class AudioSplitter:
         idx = (idx1 & idx2)
         self.datas = self.datas[idx]
         self.long_datas = self.long_datas[idx]
+        self.long_long_datas = self.long_long_datas[idx]
         self.labels = self.labels[idx]
         self.transition_indicator = self.transition_indicator[idx]
 
@@ -173,11 +186,12 @@ if __name__ == "__main__":
         "lead_time": 174.194
     }
 
-    frac_t, long_frac_t, step_t = 5, 20, 2
+    frac_t, long_frac_t, long_long_frac_t, step_t = 5, 20, 60, 2
     src_path = 'data/COAS_2/Audios/48ad890d-ActiveLearning_6.wav'
     audiosplitter = AudioSplitter(src_path, metadata_dict, target_class_version=0)
-    audiosplitter.split_audio(frac_t, long_frac_t, step_t, threshold=0.3)
+    audiosplitter.split_audio(frac_t, long_frac_t, long_long_frac_t, step_t, threshold=0.3)
     audiosplitter.remove_noisy_data(remove_no_label_data=True, remove_transition=False)
     print(audiosplitter.datas.shape)
     print(audiosplitter.long_datas.shape)
+    print(audiosplitter.long_long_datas.shape)
     print(audiosplitter.labels.shape)

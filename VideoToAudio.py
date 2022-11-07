@@ -7,7 +7,8 @@ from pedalboard import Pedalboard, Distortion, PitchShift, Compressor, Bitcrush
 from pedalboard.io import AudioFile
 
 
-def convert_video_to_audio_moviepy(video_file, data_path, output_path, output_ext='wav', audio_fps=22050, overwrite=True):
+def convert_video_to_audio_moviepy(video_file, data_path, output_path, output_ext='wav', audio_fps=22050,
+                                   overwrite=True):
     """
     Check whether the video has been extracted to audio
     Converts video to audio using MoviePy library that uses `ffmpeg` under the hood
@@ -19,7 +20,10 @@ def convert_video_to_audio_moviepy(video_file, data_path, output_path, output_ex
     else:
         print(f"{output_path}/{filename}.{output_ext} exists")
 
-def augment_audio_data(audio_file, data_path, output_path, aug_list=['compressor', 'distortion', 'pitchshift', 'bitcrush'], samplerate=22050, overwrite=True):
+
+def augment_audio_data(audio_file, data_path, output_path,
+                       aug_list=['compressor', 'distortion', 'pitchshift', 'bitcrush'], samplerate=22050,
+                       overwrite=True):
     print(f'augmenting audio {audio_file}')
     aug_list_lower = [aug.lower() for aug in aug_list]
     filename, ext = os.path.splitext(audio_file)
@@ -30,7 +34,7 @@ def augment_audio_data(audio_file, data_path, output_path, aug_list=['compressor
         'compressor': Compressor(threshold_db=-50, ratio=25),
         'distortion': Distortion(drive_db=25),
         'pitchshift': PitchShift(semitones=3),
-        'bitcrush' : Bitcrush(bit_depth=8)
+        'bitcrush': Bitcrush(bit_depth=8)
     }
     # Read in a whole file, resampling to our desired sample rate:
     with AudioFile(f'{data_path}/{audio_file}').resampled_to(samplerate) as f:
@@ -45,8 +49,8 @@ def augment_audio_data(audio_file, data_path, output_path, aug_list=['compressor
             print(f"{output_path}/{filename}_{aug}{ext} exists")
         # store the name in list for indexing
         file_aug_list.append(f"{filename}_{aug}{ext}")
-    
-    return {filename : file_aug_list}
+
+    return {filename: file_aug_list}
 
 
 if __name__ == "__main__":
@@ -67,11 +71,11 @@ if __name__ == "__main__":
     num_train = int(len(videofiles) * 0.9)
     # Extract audios from videos
     for i, file in enumerate(videofiles):
-        print(f'extracted {i+1} files and {len(videofiles)-i-1} to go')
+        print(f'extracted {i + 1} files and {len(videofiles) - i - 1} to go')
         if i <= num_train:
-            convert_video_to_audio_moviepy(file, video_path, audio_path, output_ext="wav", overwrite=False)
+            convert_video_to_audio_moviepy(file, video_path, audio_path, output_ext="wav", overwrite=True)
         else:
-            convert_video_to_audio_moviepy(file, video_path, audio_test_path, output_ext="wav", overwrite=False)
+            convert_video_to_audio_moviepy(file, video_path, audio_test_path, output_ext="wav", overwrite=True)
 
     # List all files under audio folder
     audiofiles = [f for f in listdir(audio_path) if f.endswith('wav')]
@@ -82,8 +86,8 @@ if __name__ == "__main__":
     # start data augmentation on the training data
     file_aug_dict_all = {}
     for i, audio_file in enumerate(audiofiles):
-        print(f'augmented {i+1} files and {len(audiofiles)-i-1} to go')
-        file_aug_dict = augment_audio_data(audio_file, audio_path, audio_aug_path, aug_list=['pitchshift'])
+        print(f'augmented {i + 1} files and {len(audiofiles) - i - 1} to go')
+        file_aug_dict = augment_audio_data(audio_file, audio_path, audio_aug_path, aug_list=['compressor', 'distortion', 'pitchshift', 'bitcrush'], overwrite=True)
         file_aug_dict_all.update(file_aug_dict)
 
     jsonFile = open(f"{annot_path}/file_aug_dict.json", "w")

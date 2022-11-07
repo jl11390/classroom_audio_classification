@@ -20,3 +20,7 @@ With Multi-Scaling:
 With Local-RMS-Max and Class-Weighting
 best params: {'class_weight': [{0: 1, 1: 1}, {0: 1, 1: 1.5}, {0: 1, 1: 2}, {0: 1, 1: 2}, {0: 1, 1: 5}, {0: 1, 1: 5}], 'criterion': 'entropy', 'max_depth': 14, 'max_features': 22, 'n_estimators': 200}
 best score: 0.6381982235586269
+
+With Data Augmentation and New Multi-Scaling
+best params: {'class_weight': [{0: 1, 1: 1}, {0: 1, 1: 1.5}, {0: 1, 1: 2}, {0: 1, 1: 2}, {0: 1, 1: 5}, {0: 1, 1: 5}], 'criterion': 'entropy', 'max_depth': 19, 'max_features': 26, 'n_estimators': 300}
+best score: 0.6417465471268313
