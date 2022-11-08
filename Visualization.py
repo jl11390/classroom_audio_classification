@@ -26,7 +26,7 @@ class Visualizer:
     def _legend_without_duplicate_labels(self, ax):
         handles, labels = ax.get_legend_handles_labels()
         unique = [(h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]]
-        ax.legend(*zip(*unique))
+        ax.legend(*zip(*unique), loc='lower right', bbox_to_anchor =(1,1.05))
 
     def _save_plot(self, save_path, file_name):
         if not os.path.exists(save_path):

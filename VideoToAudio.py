@@ -31,7 +31,8 @@ def augment_audio_data(audio_file, data_path, output_path,
     file_aug_list = []
     # dict for all aug params
     aug_dict = {
-        'compressor': Compressor(threshold_db=-50, ratio=25),
+        # change the params
+        'compressor': Compressor(threshold_db=20, ratio=4),
         'distortion': Distortion(drive_db=25),
         'pitchshift': PitchShift(semitones=3),
         'bitcrush': Bitcrush(bit_depth=8)

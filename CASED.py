@@ -146,7 +146,8 @@ class CASED:
                           "class_weight": class_weight_lst}
 
             # make_scorer wraps score function for use in cv, 'micro' calculates metrics globally by counting TP,FP,TN,FN
-            f_scorer = make_scorer(f1_score, average='micro')
+            # use macro instead!
+            f_scorer = make_scorer(f1_score, average='macro')
 
             logo = LeaveOneGroupOut()
 
@@ -197,7 +198,10 @@ class CASED:
         transition_mtx = np.array([[1 - transit_prob_01, transit_prob_01], [trans_prob_10, 1 - trans_prob_10]])
         num_label = prob.shape[0]
         transition_mtx_full = np.repeat(transition_mtx[np.newaxis, :, :], num_label, axis=0)
-        binary_pred = viterbi_binary(prob, transition_mtx_full)
+        # set p_state to be the proportion of state in the training data
+        a = 0.1
+        p_state = a * (np.sum(self.labels_matrix_all, axis=0) / np.sum(self.labels_matrix_all)) + (1 - a) * np.repeat(0.5, num_label)
+        binary_pred = viterbi_binary(prob, transition_mtx_full, p_state = p_state)
 
         return binary_pred
 
@@ -330,7 +334,7 @@ if __name__ == '__main__':
                           load_cache=True, num_folds=5)
     cased.randomized_search_cv(n_iter_search=10, cache_path=model_cache_path, load_cache=True)
     # cased.evaluate_all(annot_path, audio_test_path, cache_test_path, eval_result_path, transit_prob_01=0.5,
-    #                    trans_prob_10=0.3, load_cache=False)
+    #                    trans_prob_10=0.3, load_cache=True)
 
     audiofiles_test = [f for f in os.listdir(audio_test_path) if f.endswith('wav')]
     for test_audio in audiofiles_test:
