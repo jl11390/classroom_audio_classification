@@ -139,7 +139,7 @@ class CASED:
             assert self.features_matrix_all is not None, 'load training data first!'
             clf = RandomForestClassifier()
             class_weight_lst = self._customize_class_weights_candidates()
-            param_dist = {"n_estimators": [200, 300],
+            param_dist = {"n_estimators": [200],
                           "max_features": sp_randint(20, 50),
                           "max_depth": sp_randint(8, 20),
                           "criterion": ['entropy'],
@@ -328,7 +328,7 @@ if __name__ == '__main__':
     model_cache_path = 'data/COAS_2/Model'
     audio_test_path = 'data/COAS_2/Audios_test'
     eval_result_path = 'data/COAS_2/Eval_test'
-    plot_path = 'data/COAS_2/Plots'
+    plot_path = 'Plots'
     cased = CASED(frac_t, long_frac_t, long_long_frac_t, step_t, target_class_version=0)
     cased.load_train_data(annot_path, audio_path, cache_path, cache_aug_path, aug_dict_path, audio_aug_path,
                           load_cache=True, num_folds=5)
