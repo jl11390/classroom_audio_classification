@@ -17,6 +17,7 @@ from sklearn.model_selection import RandomizedSearchCV
 from librosa.sequence import viterbi_binary
 from WavToFeatures import WavToFeatures
 from Visualization import Visualizer
+from Evaluation import Evaluation
 from yellowbrick.model_selection import FeatureImportances
 
 
@@ -262,38 +263,21 @@ class CASED:
                 del event_dict['start']
                 del event_dict['end']
                 del event_dict['labels']
-            reference_event_list_all.append(reference_event_list)
+                if event_dict:
+                    reference_event_list_all.append(event_dict)
+            # reference_event_list_all.append(reference_event_list)
             estimated_event_list_all.append(estimated_event_list)
 
-        reference_event_list_all = list(itertools.chain.from_iterable(reference_event_list_all))
+        # reference_event_list_all = list(itertools.chain.from_iterable(reference_event_list_all))
         estimated_event_list_all = list(itertools.chain.from_iterable(estimated_event_list_all))
-        event_labels = sed_eval.util.event_list.unique_event_labels(reference_event_list_all)
-
-        # Create metrics classes, define parameters
-        segment_based_metrics = sed_eval.sound_event.SegmentBasedMetrics(event_label_list=event_labels,
-                                                                         time_resolution=1.0)
-        segment_based_metrics.evaluate(reference_event_list=reference_event_list_all,
-                                       estimated_event_list=estimated_event_list_all)
-        # Get all metrices
-        all_class_wise_metrics = segment_based_metrics.results_class_wise_metrics()
-        # Filter metrices and change output format
-        eval_result = {}
-        for label_class, result in list(all_class_wise_metrics.items()):
-            label = self.reverse_label_dict[label_class]
-            eval_result[label] = {999: '999'}
-            eval_result[label]['f_measure'] = result['f_measure']['f_measure']
-            eval_result[label]['precision'] = result['f_measure']['precision']
-            eval_result[label]['recall'] = result['f_measure']['recall']
-            eval_result[label]['error_rate'] = result['error_rate']['error_rate']
-            del eval_result[label][999]
-
-        # Save result to eval_result_path
-        if not os.path.exists(eval_result_path):
-            os.makedirs(eval_result_path)
-        path = os.path.join(eval_result_path, 'result_all.json')
-        with open(path, "w") as outfile:
-            json.dump(eval_result, outfile)
-
+        
+        #print(estimated_event_list_all)
+        evaluation = Evaluation(self.reverse_label_dict, 1.0, reference_event_list_all, estimated_event_list_all, eval_result_path)
+        eval_result = evaluation.get_metrics()
+        evaluation.plot_metrics(eval_result)
+        confusion_matrix, event_labels= evaluation.get_confusion_matrix(evaluated_length_seconds=None)
+        evaluation.plot_confusion_matrix(confusion_matrix, event_labels)
+        
     def visualize_pred(self, file_name, audio_path, cache_test_path, save_path, annot_path, transit_prob_01=0.5,
                        trans_prob_10=0.5,
                        load_cache=False):
@@ -333,8 +317,8 @@ if __name__ == '__main__':
     cased.load_train_data(annot_path, audio_path, cache_path, cache_aug_path, aug_dict_path, audio_aug_path,
                           load_cache=True, num_folds=5)
     cased.randomized_search_cv(n_iter_search=10, cache_path=model_cache_path, load_cache=True)
-    # cased.evaluate_all(annot_path, audio_test_path, cache_test_path, eval_result_path, transit_prob_01=0.5,
-    #                    trans_prob_10=0.3, load_cache=True)
+    cased.evaluate_all(annot_path, audio_test_path, cache_test_path, eval_result_path, transit_prob_01=0.5,
+                        trans_prob_10=0.3, load_cache=True)
 
     audiofiles_test = [f for f in os.listdir(audio_test_path) if f.endswith('wav')]
     for test_audio in audiofiles_test:
