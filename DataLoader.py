@@ -54,7 +54,8 @@ class DataLoader:
                 assert audio_feature.features.shape == audio_long_feature.features.shape and audio_long_feature.features.shape == audio_long_long_feature.features.shape
                 audio_diff_features_1 = audio_long_feature.features - audio_feature.features
                 audio_diff_features_2 = audio_long_long_feature.features - audio_feature.features
-                audio_final_features = np.concatenate((audio_feature.features, audio_diff_features_1, audio_diff_features_2))
+                audio_final_features = np.concatenate(
+                    (audio_feature.features, audio_diff_features_1, audio_diff_features_2))
                 features_matrix = np.vstack(
                     [features_matrix, audio_final_features]) if features_matrix is not None else audio_final_features
             local_rms_max = get_local_rms_max(audiosplitter.y)
