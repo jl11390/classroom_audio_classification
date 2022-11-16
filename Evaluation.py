@@ -8,21 +8,22 @@ import seaborn as sns
 from sklearn.metrics import multilabel_confusion_matrix
 import sed_eval
 from sed_eval import util
+import public_func as F
 
 
 class Evaluation:
-    def __init__(self, reverse_label_dict, time_resolution, reference_event_list_all, estimated_event_list_all, eval_result_path):
+    def __init__(self, reverse_label_dict, time_resolution, reference_event_list_all, estimated_event_list_all, eval_result_path, target_class_version):
         self.reverse_label_dict = reverse_label_dict
         self.time_resolution = time_resolution
         self.reference_event_list_all = reference_event_list_all
         self.estimated_event_list_all = estimated_event_list_all
         self.eval_result_path = eval_result_path
+        self.target_class_version = target_class_version
+        self.event_labels = list(set(F.get_label_dict(target_class_version=self.target_class_version).values()))
 
     def get_metrics(self):
-        event_labels = util.event_list.unique_event_labels(self.reference_event_list_all)
-
         # Create metrics classes, define parameters
-        segment_based_metrics = sed_eval.sound_event.SegmentBasedMetrics(event_label_list=event_labels, time_resolution=1.0)
+        segment_based_metrics = sed_eval.sound_event.SegmentBasedMetrics(event_label_list=self.event_labels, time_resolution=1.0)
         segment_based_metrics.evaluate(reference_event_list=self.reference_event_list_all,
                                        estimated_event_list=self.estimated_event_list_all)
         # Get all metrices
@@ -31,12 +32,18 @@ class Evaluation:
         eval_result = {}
         for label_class, result in list(all_class_wise_metrics.items()):
             label = self.reverse_label_dict[label_class]
-            eval_result[label] = {999: '999'}
-            eval_result[label]['f_measure'] = result['f_measure']['f_measure']
-            eval_result[label]['precision'] = result['f_measure']['precision']
-            eval_result[label]['recall'] = result['f_measure']['recall']
-            eval_result[label]['error_rate'] = result['error_rate']['error_rate']
-            del eval_result[label][999]
+            eval_result[label] = {}
+            eval_result[label]['f_measure'] = result['f_measure']['f_measure'] if np.isnan(result['f_measure']['f_measure']) == False else 0.0
+            eval_result[label]['precision'] = result['f_measure']['precision'] if np.isnan(result['f_measure']['precision']) == False else 0.0
+            eval_result[label]['recall'] = result['f_measure']['recall'] if np.isnan(result['f_measure']['recall']) == False else 0.0
+            eval_result[label]['error_rate'] = result['error_rate']['error_rate'] if result['error_rate']['error_rate'] < 1 else 1
+
+        # compute macro average of f1 score
+        overall_f, c = 0, 1
+        for label in eval_result:
+            overall_f += eval_result[label]['f_measure']
+            c += 1
+        overall_f /= c
 
         # Save result to eval_result_path
         if not os.path.exists(self.eval_result_path):
@@ -45,7 +52,7 @@ class Evaluation:
         with open(path, "w") as outfile:
             json.dump(eval_result, outfile)
         
-        return eval_result
+        return eval_result, overall_f
 
     def plot_metrics(self, eval_result):
         df = pd.DataFrame.from_dict(eval_result).T
@@ -59,18 +66,16 @@ class Evaluation:
     def get_confusion_matrix(self, evaluated_length_seconds=None):
         # Replicated from https://tut-arg.github.io/sed_eval/_modules/sed_eval/sound_event.html#SegmentBasedMetrics.evaluate
 
-        event_labels = util.event_list.unique_event_labels(self.reference_event_list_all)
-
         # Convert event list into frame-based representation 
         reference_event_roll = util.event_list_to_event_roll(
             source_event_list=self.reference_event_list_all,
-            event_label_list=event_labels,
+            event_label_list=self.event_labels,
             time_resolution=self.time_resolution
         )
 
         estimated_event_roll = util.event_list_to_event_roll(
             source_event_list=self.estimated_event_list_all,
-            event_label_list=event_labels,
+            event_label_list=self.event_labels,
             time_resolution=self.time_resolution
         )
 
@@ -101,7 +106,7 @@ class Evaluation:
         confusion_matrix = multilabel_confusion_matrix(reference_event_roll, estimated_event_roll)
 
         labels = []
-        for label in event_labels:
+        for label in self.event_labels:
             labels.append(self.reverse_label_dict[label])
 
         return confusion_matrix, labels

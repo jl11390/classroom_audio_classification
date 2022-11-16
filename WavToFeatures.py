@@ -33,7 +33,7 @@ class WavToFeatures:
             with open(self.feature_path, 'rb') as f:
                 features = pickle.load(f)
             features_matrix = features
-            print(f'features and labels load successfully for evaluation file {self.file_name}')
+            # print(f'features and labels load successfully for evaluation file {self.file_name}')
         else:
             y, sr = librosa.load(self.file_path, sr=22050, mono=True)
             num_samples = len(y)  # total number of samples

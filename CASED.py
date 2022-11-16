@@ -19,6 +19,7 @@ from WavToFeatures import WavToFeatures
 from Visualization import Visualizer
 from Evaluation import Evaluation
 from yellowbrick.model_selection import FeatureImportances
+from tqdm import tqdm
 
 
 class CASED:
@@ -37,6 +38,7 @@ class CASED:
         self.standard_scaler = StandardScaler(copy=True)
         # best model
         self.best_model = None
+        self.best_trans_prob_01, self.best_trans_prob_10, self.best_p_state_weight = None, None, None
 
         self.label_dict = F.get_label_dict(target_class_version)
         self.reverse_label_dict = F.get_reverse_label_dict(target_class_version)
@@ -181,38 +183,42 @@ class CASED:
     #         os.makedirs(feature_plot_path)
     #     feature_visualizer.show(outpath=feature_plot_path)
 
-    def predict_proba(self, file_name, audio_path, cache_test_path, load_cache=False):
+    def predict_proba(self, file_name, audio_path, cache_path, load_cache=False):
         assert self.best_model is not None, 'get the best model first!'
-        features_matrix = WavToFeatures(file_name, audio_path, cache_test_path, self.frac_t, self.long_frac_t,
+        features_matrix = WavToFeatures(file_name, audio_path, cache_path, self.frac_t, self.long_frac_t,
                                         self.long_long_frac_t, self.step_t).transform(load_cache=load_cache)
+        
+        # for training data, the pickle saves [feature_matrix, label_matrix]
+        if type(features_matrix) == type([0,1]):
+            features_matrix = features_matrix[0]
+
         features_matrix = self.standard_scaler.transform(features_matrix)
         y_pred_prob = self.best_model.predict_proba(features_matrix)
 
         return y_pred_prob
 
-    def predict_binary(self, file_name, audio_path, cache_test_path, transit_prob_01=0.5, trans_prob_10=0.5,
+    def predict_binary(self, file_name, audio_path, cache_path, trans_prob_01=0.5, trans_prob_10=0.5, p_state_weight=0.1,
                        load_cache=False):
-        y_pred_prob = self.predict_proba(file_name, audio_path, cache_test_path, load_cache=load_cache)
+        y_pred_prob = self.predict_proba(file_name, audio_path, cache_path, load_cache=load_cache)
 
         prob = np.array(
             [y_pred_prob_label[:, 1] for y_pred_prob_label in y_pred_prob])  # proba matrix [num classes, num samples]
-        transition_mtx = np.array([[1 - transit_prob_01, transit_prob_01], [trans_prob_10, 1 - trans_prob_10]])
+        transition_mtx = np.array([[1 - trans_prob_01, trans_prob_01], [trans_prob_10, 1 - trans_prob_10]])
         num_label = prob.shape[0]
         transition_mtx_full = np.repeat(transition_mtx[np.newaxis, :, :], num_label, axis=0)
         # set p_state to be the proportion of state in the training data
-        a = 0.1
-        p_state = a * (np.sum(self.labels_matrix_all, axis=0) / np.sum(self.labels_matrix_all)) + (1 - a) * np.repeat(0.5, num_label)
+        p_state = p_state_weight * (np.sum(self.labels_matrix_all, axis=0) / np.sum(self.labels_matrix_all)) + (1 - p_state_weight) * np.repeat(0.5, num_label)
         binary_pred = viterbi_binary(prob, transition_mtx_full, p_state = p_state)
 
         return binary_pred
 
-    def predict_annotation(self, file_name, audio_path, cache_test_path, transit_prob_01=0.5, trans_prob_10=0.5,
+    def predict_annotation(self, file_name, audio_path, cache_path, trans_prob_01=0.5, trans_prob_10=0.5, p_state_weight=0.1,
                            load_cache=False):
         """predict the smoothed (onset,offset) sequence for each target class"""
         assert self.best_model is not None, 'get the best model first!'
 
-        binary_pred = self.predict_binary(file_name, audio_path, cache_test_path, transit_prob_01=transit_prob_01,
-                                          trans_prob_10=trans_prob_10,
+        binary_pred = self.predict_binary(file_name, audio_path, cache_path, trans_prob_01=trans_prob_01,
+                                          trans_prob_10=trans_prob_10, p_state_weight = p_state_weight,
                                           load_cache=load_cache)
 
         # Get start time, end time of consecutive 1s for each class
@@ -233,12 +239,14 @@ class CASED:
                 {'event_onset': start_t, 'event_offset': end_t, 'event_label': inv_map[detected[0]]})
         return estimated_event_list
 
-    def evaluate_all(self, annot_path, audio_test_path, cache_test_path, eval_result_path, transit_prob_01=0.5,
-                     trans_prob_10=0.5, load_cache=True):
+    def evaluate_all(self, annot_path, audio_path, cache_path, eval_result_path, trans_prob_01=None, trans_prob_10=None, 
+                    p_state_weight=None, plot=False, load_cache=True):
+        if trans_prob_01==None and trans_prob_10==None and p_state_weight==None:
+            trans_prob_01, trans_prob_10, p_state_weight =self.best_trans_prob_01, self.best_trans_prob_10, self.best_p_state_weight
 
         with open(annot_path, 'r') as f:
             annot = json.load(f)
-        audiofiles_test = [i for i in os.listdir(audio_test_path) if i.endswith('wav')]
+        audiofiles_test = [i for i in os.listdir(audio_path) if i.endswith('wav')]
 
         # Get used event labels
         reference_event_list_all = []
@@ -246,12 +254,12 @@ class CASED:
         for file in audiofiles_test:
             metadict = self.get_metadict(annot, file)
             if metadict is None:
-                print("test audio not found in annot")
+                print(f"evaluation audio {file} not found in annot")
                 continue
             else:
                 reference_event_list = metadict['tricks']
-            estimated_event_list = self.predict_annotation(file, audio_test_path, cache_test_path,
-                                                           transit_prob_01=transit_prob_01, trans_prob_10=trans_prob_10,
+            estimated_event_list = self.predict_annotation(file, audio_path, cache_path,
+                                                           trans_prob_01=trans_prob_01, trans_prob_10=trans_prob_10, p_state_weight=p_state_weight,
                                                            load_cache=load_cache)
             for est_event_dict in estimated_event_list:
                 est_event_dict['event_label'] = self.label_dict[est_event_dict['event_label']]
@@ -259,7 +267,7 @@ class CASED:
                 if event_dict['labels'][0].lower() != 'other':
                     event_dict['event_onset'] = event_dict['start']
                     event_dict['event_offset'] = event_dict['end']
-                    event_dict['event_label'] = self.label_dict[event_dict['labels'][0]]
+                    event_dict['event_label'] = self.label_dict[event_dict['labels'][0].lower()]
                 del event_dict['start']
                 del event_dict['end']
                 del event_dict['labels']
@@ -272,17 +280,48 @@ class CASED:
         estimated_event_list_all = list(itertools.chain.from_iterable(estimated_event_list_all))
         
         #print(estimated_event_list_all)
-        evaluation = Evaluation(self.reverse_label_dict, 1.0, reference_event_list_all, estimated_event_list_all, eval_result_path)
-        eval_result = evaluation.get_metrics()
-        evaluation.plot_metrics(eval_result)
-        confusion_matrix, event_labels= evaluation.get_confusion_matrix(evaluated_length_seconds=None)
-        evaluation.plot_confusion_matrix(confusion_matrix, event_labels)
-        
-    def visualize_pred(self, file_name, audio_path, cache_test_path, save_path, annot_path, transit_prob_01=0.5,
+        evaluation = Evaluation(self.reverse_label_dict, 1.0, reference_event_list_all, estimated_event_list_all, eval_result_path, target_class_version=self.target_class_version)
+        eval_result, macro_f = evaluation.get_metrics()
+        if plot:
+            evaluation.plot_metrics(eval_result)
+            confusion_matrix, event_labels= evaluation.get_confusion_matrix(evaluated_length_seconds=None)
+            evaluation.plot_confusion_matrix(confusion_matrix, event_labels)
+
+        return macro_f
+
+    def search_viterbi_params(self, annot_path, audio_path, cache_path, params_cache_path, eval_result_path, load_cache_params = False):
+        params_path = os.path.join(params_cache_path, 'best_params.pkl')
+        if load_cache_params and os.path.exists(params_path):
+            with open(params_path, 'rb') as f:
+               self.best_trans_prob_01, self.best_trans_prob_10, self.best_p_state_weight = pickle.load(f)
+            print(f'params loaded from cache path {params_path}')
+        else:
+            trans_prob_01_list, trans_prob_10_list = np.arange(1, 10)/10, np.arange(1, 10)/10
+            p_state_weight_list = np.arange(10)/10
+            params_arr = np.array(np.meshgrid(trans_prob_01_list, trans_prob_10_list, p_state_weight_list)).T.reshape(-1, 3)
+
+            best_macro_f = -1
+            for params in tqdm(params_arr):
+                trans_prob_01, trans_prob_10, p_state_weight = params[0], params[1], params[2]
+                macro_f = self.evaluate_all(annot_path, audio_path, cache_path, eval_result_path, trans_prob_01=trans_prob_01, trans_prob_10=trans_prob_10, 
+                        p_state_weight=p_state_weight, plot=False, load_cache=True)
+                if macro_f > best_macro_f:
+                    best_macro_f = macro_f
+                    self.best_trans_prob_01, self.best_trans_prob_10, self.best_p_state_weight = trans_prob_01, trans_prob_10, p_state_weight
+            print(f'best transition proba 0-1: {self.best_trans_prob_01}, best transition proba 1-0: {self.best_trans_prob_10}, best p_state weight: {self.best_p_state_weight}')
+            params_set = (self.best_trans_prob_01, self.best_trans_prob_10, self.best_p_state_weight)
+            # save the best model
+            
+            if not os.path.exists(params_cache_path):
+                os.makedirs(params_cache_path)
+            with open(params_path, "wb") as f:
+                pickle.dump(params_set, f)
+
+    def visualize_pred(self, file_name, audio_path, cache_test_path, save_path, annot_path, trans_prob_01=0.5,
                        trans_prob_10=0.5,
                        load_cache=False):
         proba_pred = self.predict_proba(file_name, audio_path, cache_test_path, load_cache=load_cache)
-        binary_pred = self.predict_binary(file_name, audio_path, cache_test_path, transit_prob_01=transit_prob_01,
+        binary_pred = self.predict_binary(file_name, audio_path, cache_test_path, trans_prob_01=trans_prob_01,
                                           trans_prob_10=trans_prob_10,
                                           load_cache=load_cache)
 
@@ -291,18 +330,20 @@ class CASED:
         metadict = self.get_metadict(annot, file_name)
         reference_event_list = metadict['tricks']
         estimated_event_list = self.predict_annotation(file_name, audio_path, cache_test_path,
-                                                       transit_prob_01=transit_prob_01, trans_prob_10=trans_prob_10,
+                                                       trans_prob_01=trans_prob_01, trans_prob_10=trans_prob_10,
                                                        load_cache=load_cache)
         visualizer = Visualizer(self.label_dict, self.reverse_label_dict)
         visualizer.plot(file_name, audio_path, save_path, reference_event_list, estimated_event_list, proba_pred,
                         binary_pred)
+        print(f'evaluated all audios in {audio_path} and results stored')
 
 
 if __name__ == '__main__':
     warnings.simplefilter(action='ignore', category=FutureWarning)
-    frac_t, long_frac_t, long_long_frac_t, step_t = 5, 20, 60, 2
-    annot_path = 'data/COAS_2/Annotation/project-3-at-2022-10-16-23-25-0c5736a4.json'
 
+    frac_t, long_frac_t, long_long_frac_t, step_t = 5, 20, 60, 2
+
+    annot_path = 'data/COAS_2/Annotation/project-3-at-2022-10-16-23-25-0c5736a4.json'
     audio_path = 'data/COAS_2/Audios'
     audio_aug_path = 'data/COAS_2/Audios_augmented'
     aug_dict_path = 'data/COAS_2/Annotation/file_aug_dict.json'
@@ -311,16 +352,22 @@ if __name__ == '__main__':
     cache_test_path = 'data/COAS_2/Features_test'
     model_cache_path = 'data/COAS_2/Model'
     audio_test_path = 'data/COAS_2/Audios_test'
-    eval_result_path = 'data/COAS_2/Eval_test'
+    eval_test_path = 'data/COAS_2/Eval_test'
+    eval_val_path = 'data/COAS_2/Eval_val'
     plot_path = 'Plots'
+
     cased = CASED(frac_t, long_frac_t, long_long_frac_t, step_t, target_class_version=0)
+
     cased.load_train_data(annot_path, audio_path, cache_path, cache_aug_path, aug_dict_path, audio_aug_path,
                           load_cache=True, num_folds=5)
+
     cased.randomized_search_cv(n_iter_search=10, cache_path=model_cache_path, load_cache=True)
-    cased.evaluate_all(annot_path, audio_test_path, cache_test_path, eval_result_path, transit_prob_01=0.5,
-                        trans_prob_10=0.3, load_cache=True)
+
+    cased.search_viterbi_params(annot_path, audio_path, cache_path, model_cache_path, eval_val_path, load_cache_params = True)
+
+    cased.evaluate_all(annot_path, audio_test_path, cache_test_path, eval_test_path, plot=True, load_cache=True)
 
     audiofiles_test = [f for f in os.listdir(audio_test_path) if f.endswith('wav')]
     for test_audio in audiofiles_test:
-        cased.visualize_pred(test_audio, audio_test_path, cache_test_path, plot_path, annot_path, transit_prob_01=0.5,
+        cased.visualize_pred(test_audio, audio_test_path, cache_test_path, plot_path, annot_path, trans_prob_01=0.5,
                              trans_prob_10=0.3, load_cache=True)
