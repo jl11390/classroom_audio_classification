@@ -87,7 +87,7 @@ class AudioSplitter:
         for i in range(len(annot_result)):
             start_t = annot_result[i]['start']
             end_t = annot_result[i]['end']
-            labels = annot_result[i]['labels'].lower()
+            labels = annot_result[i]['labels']
             if labels[0].lower() == 'other':  # exclude 'other' from our data samples
                 continue
             overlap = 0
