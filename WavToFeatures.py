@@ -25,7 +25,7 @@ class WavToFeatures:
         with open(save_path, "wb") as f:
             pickle.dump(features, f)
 
-    def transform(self, load_cache=False):
+    def transform(self, load_cache=False, multi_scaling=True):
         """
         transform a wav file into feature matrix, used for inference
         """
@@ -91,10 +91,15 @@ class WavToFeatures:
             features_matrix = np.hstack([features_matrix, local_rms_max_feature])
             self.save_pickle(features_matrix, self.feature_path)
             print(f'successfully transformed the wav file {self.file_name} into a {features_matrix.shape} matrix')
+        if not multi_scaling:
+            original_data_dim = int((features_matrix.shape[1] - 1) / 3)
+            fancy_index = [k for k in range(original_data_dim)]
+            fancy_index.append(-1)
+            features_matrix = features_matrix[:, fancy_index]
         return features_matrix
 
 
 if __name__ == "__main__":
     file_name, audio_path, cache_path, frac_t, long_frac_t, long_long_frac_t, step_t = '48ad890d-ActiveLearning_6.wav', 'data/COAS_2/Audios', 'data/COAS_2/Features_test', 5, 20, 60, 2
-    wav_to_features = WavToFeatures(file_name, audio_path, cache_path, frac_t, long_frac_t, long_long_frac_t, step_t).transform(load_cache=False)
+    wav_to_features = WavToFeatures(file_name, audio_path, cache_path, frac_t, long_frac_t, long_long_frac_t, step_t).transform(load_cache=False, multi_scaling=True)
     print(wav_to_features.shape)

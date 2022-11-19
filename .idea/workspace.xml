@@ -2,10 +2,10 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="f0de5b96-ae4f-49d0-a9fd-b212be7a0c93" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/StagewiseModelScore.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/CASED.py" beforeDir="false" afterPath="$PROJECT_DIR$/CASED.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/DataLoader.py" beforeDir="false" afterPath="$PROJECT_DIR$/DataLoader.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/StagewiseModelScore.py" beforeDir="false" afterPath="$PROJECT_DIR$/StagewiseModelScore.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/WavToFeatures.py" beforeDir="false" afterPath="$PROJECT_DIR$/WavToFeatures.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -40,7 +40,7 @@
     &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;
   }
 }</component>
-  <component name="RunManager" selected="Python.StagewiseModelScore">
+  <component name="RunManager" selected="Python.WavToFeatures">
     <configuration name="AudioSplitter" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="classroom_audio_classification" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -148,10 +148,10 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.WavToFeatures" />
         <item itemvalue="Python.StagewiseModelScore" />
         <item itemvalue="Python.CASED" />
         <item itemvalue="Python.DataLoader" />
-        <item itemvalue="Python.WavToFeatures" />
         <item itemvalue="Python.AudioSplitter" />
       </list>
     </recent_temporary>

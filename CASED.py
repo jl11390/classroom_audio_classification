@@ -50,8 +50,8 @@ class CASED:
                 return metadict
         return None
 
-    def load_train_data(self, annot_path, audio_path, cache_path, audio_aug_path=None, cache_aug_path=None,
-                        aug_dict_path=None, load_cache=False, num_folds=5, multi_scaling=True):
+    def load_train_data(self, annot_path, audio_path, cache_path, audio_aug_path=False, cache_aug_path=False,
+                        aug_dict_path=False, load_cache=False, num_folds=5, multi_scaling=True):
         """
         load all training data, using DataLoader, into self.features_matrix_all and self.labels_matrix_all and self.folds_all
         """
