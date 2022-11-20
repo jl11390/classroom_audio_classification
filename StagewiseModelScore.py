@@ -16,9 +16,6 @@ if __name__ == '__main__':
     cache_aug_path = 'data/COAS_2/Aug_features'
     cache_test_path = 'data/COAS_2/Features_test'
 
-    cache_path_noms = 'data/COAS_2/Features_noms'
-    cache_test_path_noms = 'data/COAS_2/Features_test_noms'
-
     model_cache_path_0 = 'data/COAS_2/Model/cased0'
     model_cache_path_1 = 'data/COAS_2/Model/cased1'
     model_cache_path_2 = 'data/COAS_2/Model/cased2'
@@ -38,60 +35,64 @@ if __name__ == '__main__':
     # Version 0: without data augmentation/ multi-scaling, predict threshold
     cased0 = CASED(frac_t, long_frac_t, long_long_frac_t, step_t, target_class_version=0)
 
-    cased0.load_train_data(annot_path, audio_path, cache_path_noms, audio_aug_path=False, cache_aug_path=False,
-                           aug_dict_path=False, load_cache=True, num_folds=5, multi_scaling=False)
+    cased0.load_train_data(annot_path, audio_path, cache_path, audio_aug_path=None, cache_aug_path=None,
+                           aug_dict_path=None, load_cache=True, num_folds=5, multi_scaling=False)
     print(
         f"V0 \nfeatures matrix shape: {cased0.features_matrix_all.shape} \n labels matrix shape: {cased0.labels_matrix_all.shape}")
 
-    cased0.randomized_search_cv(n_iter_search=10, cache_path=model_cache_path_0, load_cache=True)
+    cased0.randomized_search_cv(n_iter_search=10, cache_path=model_cache_path_0, load_cache=False)
 
-    cased0.evaluate_all(annot_path, audio_test_path, cache_test_path_noms, eval_test_path_0, plot=True,
-                        predict_type='threshold', load_cache=True)
+    cased0.evaluate_all(annot_path, audio_test_path, cache_test_path, eval_test_path_0, trans_prob_01=0.5,
+                        trans_prob_10=0.3, p_state_weight=None, plot=True,
+                        predict_type='threshold', load_cache=True, multi_scaling=False)
 
     print('------------------------------------------------------------------')
 
     # Version 1: with multi-scaling, predict threshold
     cased1 = CASED(frac_t, long_frac_t, long_long_frac_t, step_t, target_class_version=0)
 
-    cased1.load_train_data(annot_path, audio_path, cache_path, audio_aug_path=False, cache_aug_path=False,
-                           aug_dict_path=False, load_cache=True, num_folds=5, multi_scaling=True)
+    cased1.load_train_data(annot_path, audio_path, cache_path, audio_aug_path=None, cache_aug_path=None,
+                           aug_dict_path=None, load_cache=True, num_folds=5, multi_scaling=True)
     print(
         f"V123 \nfeatures matrix shape: {cased1.features_matrix_all.shape} \n labels matrix shape: {cased1.labels_matrix_all.shape}")
 
-    cased1.randomized_search_cv(n_iter_search=10, cache_path=model_cache_path_1, load_cache=True)
+    cased1.randomized_search_cv(n_iter_search=10, cache_path=model_cache_path_1, load_cache=False)
 
-    cased1.evaluate_all(annot_path, audio_test_path, cache_test_path, eval_test_path_1, plot=True,
-                        predict_type='threshold', load_cache=True)
+    cased1.evaluate_all(annot_path, audio_test_path, cache_test_path, eval_test_path_1, trans_prob_01=0.5,
+                        trans_prob_10=0.3, p_state_weight=None, plot=True,
+                        predict_type='threshold', load_cache=True, multi_scaling=True)
 
     print('------------------------------------------------------------------')
 
     # Version 2: with multi-scaling, predict viterbi without pstate
     cased2 = CASED(frac_t, long_frac_t, long_long_frac_t, step_t, target_class_version=0)
 
-    cased2.load_train_data(annot_path, audio_path, cache_path, audio_aug_path=False, cache_aug_path=False,
-                           aug_dict_path=False, load_cache=True, num_folds=5, multi_scaling=True)
+    cased2.load_train_data(annot_path, audio_path, cache_path, audio_aug_path=None, cache_aug_path=None,
+                           aug_dict_path=None, load_cache=True, num_folds=5, multi_scaling=True)
     print(
         f"V123 \nfeatures matrix shape: {cased2.features_matrix_all.shape} \n labels matrix shape: {cased2.labels_matrix_all.shape}")
 
-    cased2.randomized_search_cv(n_iter_search=10, cache_path=model_cache_path_2, load_cache=True)
+    cased2.randomized_search_cv(n_iter_search=10, cache_path=model_cache_path_2, load_cache=False)
 
-    cased2.evaluate_all(annot_path, audio_test_path, cache_test_path, eval_test_path_2, plot=True,
-                        predict_type='viterbi_without_pstate', load_cache=True)
+    cased2.evaluate_all(annot_path, audio_test_path, cache_test_path, eval_test_path_2, trans_prob_01=0.5,
+                        trans_prob_10=0.3, p_state_weight=None, plot=True,
+                        predict_type='viterbi_without_pstate', load_cache=True, multi_scaling=True)
 
     print('------------------------------------------------------------------')
 
     # Version 3: with multi-scaling, predict viterbi with pstate
     cased3 = CASED(frac_t, long_frac_t, long_long_frac_t, step_t, target_class_version=0)
 
-    cased3.load_train_data(annot_path, audio_path, cache_path, audio_aug_path=False, cache_aug_path=False,
-                           aug_dict_path=False, load_cache=True, num_folds=5, multi_scaling=True)
+    cased3.load_train_data(annot_path, audio_path, cache_path, audio_aug_path=None, cache_aug_path=None,
+                           aug_dict_path=None, load_cache=True, num_folds=5, multi_scaling=True)
     print(
         f"V123 \nfeatures matrix shape: {cased3.features_matrix_all.shape} \n labels matrix shape: {cased3.labels_matrix_all.shape}")
 
-    cased3.randomized_search_cv(n_iter_search=10, cache_path=model_cache_path_3, load_cache=True)
-
+    cased3.randomized_search_cv(n_iter_search=10, cache_path=model_cache_path_3, load_cache=False)
+    cased3.search_viterbi_params(annot_path, audio_path, cache_path, params_cache_path=model_cache_path_3,
+                                 eval_result_path=model_cache_path_3, load_cache_params=False, multi_scaling=True)
     cased3.evaluate_all(annot_path, audio_test_path, cache_test_path, eval_test_path_3, plot=True,
-                        predict_type='viterbi_with_pstate', load_cache=True)
+                        predict_type='viterbi_with_pstate', load_cache=True, multi_scaling=True)
 
     print('------------------------------------------------------------------')
 
@@ -104,7 +105,9 @@ if __name__ == '__main__':
     print(
         f"V4 \nfeatures matrix shape: {cased4.features_matrix_all.shape} \n labels matrix shape: {cased4.labels_matrix_all.shape}")
 
-    cased4.randomized_search_cv(n_iter_search=10, cache_path=model_cache_path, load_cache=True)
+    cased4.randomized_search_cv(n_iter_search=10, cache_path=model_cache_path, load_cache=False)
+    cased4.search_viterbi_params(annot_path, audio_path, cache_path, params_cache_path=model_cache_path,
+                                 eval_result_path=model_cache_path, load_cache_params=False, multi_scaling=True)
 
     cased4.evaluate_all(annot_path, audio_test_path, cache_test_path, eval_test_path, plot=True,
-                        predict_type='viterbi_with_pstate', load_cache=True)
+                        predict_type='viterbi_with_pstate', load_cache=True, multi_scaling=True)

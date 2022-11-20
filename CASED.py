@@ -50,8 +50,8 @@ class CASED:
                 return metadict
         return None
 
-    def load_train_data(self, annot_path, audio_path, cache_path, audio_aug_path=False, cache_aug_path=False,
-                        aug_dict_path=False, load_cache=False, num_folds=5, multi_scaling=True):
+    def load_train_data(self, annot_path, audio_path, cache_path, audio_aug_path=None, cache_aug_path=None,
+                        aug_dict_path=None, load_cache=False, num_folds=5, multi_scaling=True):
         """
         load all training data, using DataLoader, into self.features_matrix_all and self.labels_matrix_all and self.folds_all
         """
@@ -176,32 +176,35 @@ class CASED:
             with open(model_path, "wb") as f:
                 pickle.dump(self.best_model, f)
 
-    def predict_proba(self, file_name, audio_path, cache_path, load_cache=False):
+    def predict_proba(self, file_name, audio_path, cache_path, load_cache=False, multi_scaling=True):
         assert self.best_model is not None, 'get the best model first!'
         features_matrix = WavToFeatures(file_name, audio_path, cache_path, self.frac_t, self.long_frac_t,
-                                        self.long_long_frac_t, self.step_t).transform(load_cache=load_cache)
+                                        self.long_long_frac_t, self.step_t).transform(load_cache=load_cache,
+                                                                                      multi_scaling=multi_scaling)
 
         # for training data, the pickle saves [feature_matrix, label_matrix]
-        if type(features_matrix) == type([0, 1]):
+        if isinstance(features_matrix, list):
             features_matrix = features_matrix[0]
 
         features_matrix = self.standard_scaler.transform(features_matrix)
         y_pred_prob = self.best_model.predict_proba(features_matrix)
 
         return y_pred_prob
-    
-    def predict_threshold(self, file_name, audio_path, cache_path, load_cache=False):
-        y_pred_prob = self.predict_proba(file_name, audio_path, cache_path, load_cache=load_cache)
+
+    def predict_threshold(self, file_name, audio_path, cache_path, load_cache=False, multi_scaling=True):
+        y_pred_prob = self.predict_proba(file_name, audio_path, cache_path, load_cache=load_cache,
+                                         multi_scaling=multi_scaling)
 
         y_pred_threshold = np.array(
-            [(y_pred_prob_label[:, 1]>0.5).astype(int) for y_pred_prob_label in y_pred_prob])  # proba matrix [num classes, num samples]
+            [(y_pred_prob_label[:, 1] > 0.5).astype(int) for y_pred_prob_label in
+             y_pred_prob])  # proba matrix [num classes, num samples]
 
         return y_pred_threshold
 
     def predict_viterbi(self, file_name, audio_path, cache_path, trans_prob_01=0.5, trans_prob_10=0.5,
-                       p_state_weight=0.1,
-                       load_cache=False):
-        y_pred_prob = self.predict_proba(file_name, audio_path, cache_path, load_cache=load_cache)
+                        p_state_weight=0.1, load_cache=False, multi_scaling=True):
+        y_pred_prob = self.predict_proba(file_name, audio_path, cache_path, load_cache=load_cache,
+                                         multi_scaling=multi_scaling)
 
         prob = np.array(
             [y_pred_prob_label[:, 1] for y_pred_prob_label in y_pred_prob])  # proba matrix [num classes, num samples]
@@ -216,22 +219,23 @@ class CASED:
         return binary_pred
 
     def predict_annotation(self, file_name, audio_path, cache_path, trans_prob_01=0.5, trans_prob_10=0.5,
-                           p_state_weight=0.1, predict_type = 'viterbi_with_pstate',
-                           load_cache=False):
+                           p_state_weight=0.1, predict_type='viterbi_with_pstate',
+                           load_cache=False, multi_scaling=True):
         """predict the smoothed (onset,offset) sequence for each target class"""
         assert self.best_model is not None, 'get the best model first!'
         assert predict_type in ['viterbi_with_pstate', 'viterbi_without_pstate', 'threshold']
 
         if predict_type == 'viterbi_with_pstate':
             binary_pred = self.predict_viterbi(file_name, audio_path, cache_path, trans_prob_01=trans_prob_01,
-                                            trans_prob_10=trans_prob_10, p_state_weight=p_state_weight,
-                                            load_cache=load_cache)
+                                               trans_prob_10=trans_prob_10, p_state_weight=p_state_weight,
+                                               load_cache=load_cache, multi_scaling=multi_scaling)
         elif predict_type == 'viterbi_without_pstate':
             binary_pred = self.predict_viterbi(file_name, audio_path, cache_path, trans_prob_01=trans_prob_01,
-                                            trans_prob_10=trans_prob_10, p_state_weight=0,
-                                            load_cache=load_cache)
+                                               trans_prob_10=trans_prob_10, p_state_weight=0,
+                                               load_cache=load_cache, multi_scaling=multi_scaling)
         else:
-            binary_pred = self.predict_threshold(file_name, audio_path, cache_path, load_cache=load_cache)
+            binary_pred = self.predict_threshold(file_name, audio_path, cache_path, load_cache=load_cache,
+                                                 multi_scaling=multi_scaling)
 
         # Get start time, end time of consecutive 1s for each class
         append1 = np.zeros((binary_pred.shape[0], 1), dtype=int)
@@ -254,8 +258,10 @@ class CASED:
         return estimated_event_list
 
     def evaluate_all(self, annot_path, audio_path, cache_path, eval_result_path, trans_prob_01=None, trans_prob_10=None,
-                     p_state_weight=None, plot=False, predict_type = 'viterbi_with_pstate', load_cache=True):
-        if trans_prob_01 == None and trans_prob_10 == None and p_state_weight == None:
+                     p_state_weight=None, plot=False, predict_type='viterbi_with_pstate', load_cache=True,
+                     multi_scaling=True):
+        if trans_prob_01 is None and trans_prob_10 is None and p_state_weight is None:
+            assert self.best_trans_prob_01 is not None, 'search viterbi first!'
             trans_prob_01, trans_prob_10, p_state_weight = self.best_trans_prob_01, self.best_trans_prob_10, self.best_p_state_weight
 
         with open(annot_path, 'r') as f:
@@ -275,7 +281,7 @@ class CASED:
             estimated_event_list = self.predict_annotation(file, audio_path, cache_path,
                                                            trans_prob_01=trans_prob_01, trans_prob_10=trans_prob_10,
                                                            p_state_weight=p_state_weight, predict_type=predict_type,
-                                                           load_cache=load_cache)
+                                                           load_cache=load_cache, multi_scaling=multi_scaling)
             for est_event_dict in estimated_event_list:
                 est_event_dict['event_label'] = self.label_dict[est_event_dict['event_label']]
             for event_dict in reference_event_list:
@@ -307,7 +313,7 @@ class CASED:
         return macro_f
 
     def search_viterbi_params(self, annot_path, audio_path, cache_path, params_cache_path, eval_result_path,
-                              load_cache_params=False):
+                              load_cache_params=False, multi_scaling=True):
         params_path = os.path.join(params_cache_path, 'best_params.pkl')
         if load_cache_params and os.path.exists(params_path):
             with open(params_path, 'rb') as f:
@@ -324,7 +330,8 @@ class CASED:
                 trans_prob_01, trans_prob_10, p_state_weight = params[0], params[1], params[2]
                 macro_f = self.evaluate_all(annot_path, audio_path, cache_path, eval_result_path,
                                             trans_prob_01=trans_prob_01, trans_prob_10=trans_prob_10,
-                                            p_state_weight=p_state_weight, plot=False, load_cache=True)
+                                            p_state_weight=p_state_weight, plot=False, load_cache=True,
+                                            multi_scaling=multi_scaling)
                 if macro_f > best_macro_f:
                     best_macro_f = macro_f
                     self.best_trans_prob_01, self.best_trans_prob_10, self.best_p_state_weight = trans_prob_01, trans_prob_10, p_state_weight
@@ -338,31 +345,36 @@ class CASED:
             with open(params_path, "wb") as f:
                 pickle.dump(params_set, f)
 
-    def visualize_pred(self, file_name, audio_path, cache_test_path, save_path, annot_path, trans_prob_01=None, trans_prob_10=None, p_state_weight=None, predict_type='viterbi_with_pstate',
-                       load_cache=False):
+    def visualize_pred(self, file_name, audio_path, cache_test_path, save_path, annot_path, trans_prob_01=None,
+                       trans_prob_10=None, p_state_weight=None, predict_type='viterbi_with_pstate',
+                       load_cache=False, multi_scaling=True):
         assert predict_type in ['viterbi_with_pstate', 'viterbi_without_pstate', 'threshold']
-        if trans_prob_01 == None and trans_prob_10 == None and p_state_weight == None:
+        if trans_prob_01 is None and trans_prob_10 is None and p_state_weight is None:
+            assert self.best_trans_prob_01 is not None, 'search viterbi first!'
             trans_prob_01, trans_prob_10, p_state_weight = self.best_trans_prob_01, self.best_trans_prob_10, self.best_p_state_weight
 
         if predict_type == 'viterbi_with_pstate':
             binary_pred = self.predict_viterbi(file_name, audio_path, cache_path, trans_prob_01=trans_prob_01,
-                                            trans_prob_10=trans_prob_10, p_state_weight=p_state_weight,
-                                            load_cache=load_cache)
+                                               trans_prob_10=trans_prob_10, p_state_weight=p_state_weight,
+                                               load_cache=load_cache, multi_scaling=multi_scaling)
         elif predict_type == 'viterbi_without_pstate':
             binary_pred = self.predict_viterbi(file_name, audio_path, cache_path, trans_prob_01=trans_prob_01,
-                                            trans_prob_10=trans_prob_10, p_state_weight=0,
-                                            load_cache=load_cache)
+                                               trans_prob_10=trans_prob_10, p_state_weight=0,
+                                               load_cache=load_cache, multi_scaling=multi_scaling)
         else:
-            binary_pred = self.predict_threshold(file_name, audio_path, cache_path, load_cache=load_cache)
-        proba_pred = self.predict_proba(file_name, audio_path, cache_test_path, load_cache=load_cache)
+            binary_pred = self.predict_threshold(file_name, audio_path, cache_path, load_cache=load_cache,
+                                                 multi_scaling=multi_scaling)
+        proba_pred = self.predict_proba(file_name, audio_path, cache_test_path, load_cache=load_cache,
+                                        multi_scaling=multi_scaling)
 
         with open(annot_path, 'r') as f:
             annot = json.load(f)
         metadict = self.get_metadict(annot, file_name)
         reference_event_list = metadict['tricks']
         estimated_event_list = self.predict_annotation(file_name, audio_path, cache_test_path,
-                                                       trans_prob_01=trans_prob_01, trans_prob_10=trans_prob_10, predict_type = predict_type,
-                                                       load_cache=load_cache)
+                                                       trans_prob_01=trans_prob_01, trans_prob_10=trans_prob_10,
+                                                       predict_type=predict_type,
+                                                       load_cache=load_cache, multi_scaling=multi_scaling)
         visualizer = Visualizer(self.label_dict, self.reverse_label_dict)
         visualizer.plot(file_name, audio_path, save_path, reference_event_list, estimated_event_list, proba_pred,
                         binary_pred)
@@ -395,10 +407,12 @@ if __name__ == '__main__':
     cased.randomized_search_cv(n_iter_search=10, cache_path=model_cache_path, load_cache=True)
 
     cased.search_viterbi_params(annot_path, audio_path, cache_path, model_cache_path, eval_val_path,
-                                load_cache_params=True)
+                                load_cache_params=True, multi_scaling=True)
 
-    cased.evaluate_all(annot_path, audio_test_path, cache_test_path, eval_test_path, plot=True, predict_type = 'threshold', load_cache=True)
+    cased.evaluate_all(annot_path, audio_test_path, cache_test_path, eval_test_path, plot=True,
+                       predict_type='threshold', load_cache=True, multi_scaling=True)
 
     audiofiles_test = [f for f in os.listdir(audio_test_path) if f.endswith('wav')]
     for test_audio in audiofiles_test:
-        cased.visualize_pred(test_audio, audio_test_path, cache_test_path, plot_path, annot_path, predict_type = 'viterbi_with_pstate', load_cache=True)
+        cased.visualize_pred(test_audio, audio_test_path, cache_test_path, plot_path, annot_path,
+                             predict_type='viterbi_with_pstate', load_cache=True, multi_scaling=True)
