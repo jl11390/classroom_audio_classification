@@ -126,7 +126,7 @@ class Evaluation:
     
     def plot_confusion_matrix(self, confusion_matrix, event_labels):
         fig, ax = plt.subplots(2,3, figsize=(12,7))
-        ax[1][2].set_visible(False)
+        #ax[1][2].set_visible(False)
         for axes, cfs_matrix, label in zip(ax.flatten(), confusion_matrix, event_labels):
             self.plot_single_confusion_matrix(cfs_matrix, axes, label, ["N", "Y"])
         
