@@ -56,7 +56,7 @@ class Evaluation:
 
     def plot_metrics(self, eval_result):
         df = pd.DataFrame.from_dict(eval_result).T
-        df.plot(kind='bar', rot=15)
+        df.plot(kind='bar', rot=15, figsize=(12,7))
 
         if not os.path.exists(self.eval_result_path):
             os.makedirs(self.eval_result_path)
