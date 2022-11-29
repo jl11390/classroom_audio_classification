@@ -26,7 +26,7 @@ class Visualizer:
     def _legend_without_duplicate_labels(self, ax):
         handles, labels = ax.get_legend_handles_labels()
         unique = [(h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]]
-        ax.legend(*zip(*unique), loc='lower right', bbox_to_anchor =(1,1.05))
+        ax.legend(*zip(*unique), loc='upper right', bbox_to_anchor =(1,-0.1))
 
     def _save_plot(self, save_path, file_name):
         if not os.path.exists(save_path):
@@ -36,21 +36,21 @@ class Visualizer:
     def _wav_annot(self, file_name, audio_path, reference_dict, estimated_dict):
         wav, sr = librosa.load(os.path.join(audio_path, file_name), sr=22050)
 
-        ax = self.axes[0]
+        ax = self.axes[2]
         librosa.display.waveshow(wav, sr, color='black', x_axis='s', ax=ax)
         ax.set_xlabel('Time (seconds)')
         ax.set_ylabel('Amplitude')
         ax.set_xlim(0, len(wav) / sr)
         bottom, top = ax.get_ylim()
 
-        ax.annotate('reference labels', xy=(0, bottom))
+        ax.annotate('reference labels', xy=(0.5, bottom-0.1), annotation_clip=False)
         for frac_dict in reference_dict:
             if frac_dict['labels'][0].lower() != 'other':
                 ax.axvspan(frac_dict['start'], frac_dict['end'], ymin=0, ymax=0.1,
                            color=self.color_dict[self.label_dict[frac_dict['labels'][0]]], label=frac_dict['labels'][0],
                            alpha=0.5, zorder=-100)
 
-        ax.annotate('estimated labels', xy=(0, top))
+        ax.annotate('estimated labels', xy=(0.5, top+0.05), annotation_clip=False)
         ax.text(0, 0, 'estimation')
         for pred_dict in estimated_dict:
             ax.axvspan(pred_dict['event_onset'], pred_dict['event_offset'], ymin=0.9, ymax=1,
@@ -62,12 +62,13 @@ class Visualizer:
     def _binary_hm(self, binary_pred):
         sns.heatmap(binary_pred, yticklabels=[self.reverse_label_dict[i] for i in range(len(binary_pred))], cbar=False,
                     ax=self.axes[1])
+        self.axes[1].set_xlabel('Number of splitted audio')
 
     def _prob_hm(self, proba_pred):
         prob = np.array([y_pred_prob_label[:, 1] for y_pred_prob_label in proba_pred])
         sns.heatmap(prob, yticklabels=[self.reverse_label_dict[i] for i in range(len(prob))], cbar=True, vmin=0, vmax=1,
-                    cmap = 'coolwarm', ax=self.axes[2], center = 0.5, cbar_kws = dict(use_gridspec=False,location="bottom", ticks=list([i/10 for i in range(11)])))
-
+                    cmap = 'coolwarm', ax=self.axes[0], center = 0.5, cbar_kws = dict(use_gridspec=False, location="top", ticks=list([i/10 for i in range(11)]), label = 'predicted probability'))
+        self.axes[0].set_xlabel('Number of splitted audio')
 
     def plot(self, file_name, audio_path, save_path, reference_dict, estimated_dict, proba_pred, binary_pred):
         self._wav_annot(file_name, audio_path, reference_dict, estimated_dict)
